@@ -1,0 +1,16 @@
+{
+  "name": "torrent-creator",
+  "version": "0.1.0",
+  "description": "Torrent creation tool that automatically renames files, generates NFOs, and creates .torrent files.",
+  "main": "src/electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "backend": "python src/backend/main.py",
+    "dev": "npm run backend & sleep 2 && npm run start"
+  },
+  "author": "Kerbo",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
