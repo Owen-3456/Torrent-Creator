@@ -1,4 +1,4 @@
-# Torrent Maker
+# Torrent Creator
 
 Torrent creation tool that automatically renames files, generates NFOs, and creates .torrent files.
 
