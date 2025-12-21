@@ -1,38 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000" />
     <title>Torrent Maker</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
 
-<body>
+  <body>
     <div class="container">
-        <header>
-            <h1>Torrent Maker</h1>
-            <p class="subtitle">Rename, generate NFOs, and create torrents</p>
-        </header>
+      <header>
+        <h1>Torrent Maker</h1>
+        <p class="subtitle">Rename, generate NFOs, and create torrents</p>
+      </header>
 
-        <main>
-            <!-- Drop zone for files -->
-            <div id="drop-zone" class="drop-zone">
-                <p>Drag & drop media files here</p>
-                <p class="hint">or click to browse</p>
-                <input type="file" id="file-input" hidden>
-            </div>
+      <main>
+        <!-- Drop zone for files -->
+        <div id="drop-zone" class="drop-zone">
+          <p>Drag & drop media files here</p>
+          <p class="hint">or click to browse</p>
+          <input type="file" id="file-input" hidden />
+        </div>
 
-            <!-- Status/results area -->
-            <div id="status" class="status">
-                <p>Backend status: <span id="backend-status">Checking...</span></p>
-            </div>
-        </main>
+        <!-- Status/results area -->
+        <div id="status" class="status">
+          <p>Backend status: <span id="backend-status">Checking...</span></p>
+        </div>
+      </main>
     </div>
 
     <script src="renderer.js"></script>
-</body>
-
+  </body>
 </html>
