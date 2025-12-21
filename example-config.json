@@ -1,0 +1,23 @@
+{
+  "api_keys": {
+    "tmdb": "your_tmdb_api_key_here",
+    "tvdb": "your_tvdb_api_key_here"
+  },
+  "naming_templates": {
+    "movie": "{title}.{year}.{quality}.{source}.{codec}-{group}",
+    "episode": "{title}.S{season:02}E{episode:02}.{episode_title}.{quality}.{source}.{codec}-{group}",
+    "season": "{title}.S{season:02}.{quality}.{source}.{codec}-{group}"
+  },
+  "trackers": ["https://example.com/announce"],
+  "output_directory": "/path/to/output",
+  "remote_paths": {
+    "enabled": false,
+    "path": ""
+  },
+  "release_group": "GROUP",
+  "nfo": {
+    "ascii_art": "custom_ascii_or_default",
+    "include_notes": true,
+    "notes_template": "Enjoy and seed!"
+  }
+}
