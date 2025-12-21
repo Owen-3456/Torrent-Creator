@@ -36,10 +36,10 @@ def health_check():
 def parse_filename(request: FileRequest):
     """Parse a media filename to extract metadata"""
     filename = os.path.basename(request.filepath)
-    
+
     # Use guessit to parse the filename
     parsed = guessit(filename)
-    
+
     # Determine media type
     if parsed.get('type') == 'movie':
         media_type = 'movie'
@@ -47,7 +47,7 @@ def parse_filename(request: FileRequest):
         media_type = 'season'
     else:
         media_type = 'episode'
-    
+
     return ParseResponse(
         filename=filename,
         parsed=dict(parsed),
