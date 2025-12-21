@@ -12,18 +12,52 @@
     <div class="container">
       <header>
         <h1>Torrent Maker</h1>
-        <p class="subtitle">Rename, generate NFOs, and create torrents</p>
       </header>
-
       <main>
-        <!-- Drop zone for files -->
-        <div id="drop-zone" class="drop-zone">
-          <p>Drag & drop media files here</p>
-          <p class="hint">or click to browse</p>
-          <input type="file" id="file-input" hidden />
+        <!-- Main Menu -->
+        <div id="main-menu" class="center-screen">
+          <h2 class="menu-title">Torrent Maker</h2>
+          <button class="menu-btn" id="menu-movie">Create Movie Torrent</button>
+          <button class="menu-btn" id="menu-episode">Create Single Episode Torrent</button>
+          <button class="menu-btn" id="menu-season">Create Season Pack Torrent</button>
+          <button class="menu-btn exit-btn" id="menu-exit">Exit</button>
+          <div class="corner-icons">
+            <span id="settings-icon" title="Settings">⚙️</span>
+            <span id="github-icon" title="GitHub">🐙</span>
+          </div>
         </div>
 
-        <!-- Status/results area -->
+        <!-- Upload Movie -->
+        <div id="upload-movie" class="center-screen" style="display: none">
+          <h2>Upload Movie</h2>
+          <div id="upload-box" class="upload-box">
+            <span>Click to upload or drag and drop</span>
+            <input type="file" id="movie-file-input" accept="video/*" hidden />
+          </div>
+          <div id="movie-upload-status"></div>
+        </div>
+
+        <!-- Movie Details -->
+        <div id="movie-details" class="center-screen" style="display: none">
+          <h2>New Movie</h2>
+          <div class="torrent-status-box">
+            <div class="torrent-status-title">Torrent Status</div>
+            <pre id="torrent-tree">(No files yet)</pre>
+          </div>
+          <form id="movie-details-form">
+            <label>Movie name<br /><input type="text" name="name" id="movie-name" /></label>
+            <div class="row">
+              <label>Year<br /><input type="text" name="year" id="movie-year" /></label>
+              <label>Runtime<br /><input type="text" name="runtime" id="movie-runtime" /></label>
+            </div>
+            <div class="row">
+              <label>Size<br /><input type="text" name="size" id="movie-size" /></label>
+              <label>Language<br /><input type="text" name="language" id="movie-language" /></label>
+            </div>
+            <button type="submit" class="main-btn">Apply Edits</button>
+          </form>
+        </div>
+
         <div id="status" class="status">
           <p>Backend status: <span id="backend-status">Checking...</span></p>
         </div>

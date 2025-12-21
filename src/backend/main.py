@@ -3,6 +3,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from guessit import guessit
 import os
+import json
+
+# Config and ASCII art file locations
+CONFIG_PATH = os.path.expanduser("~/.torrent-creator/config.json")
+ASCII_ART_PATH = os.path.expanduser("~/.torrent-creator/custom-ascii-art.txt")
+
+
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def load_ascii_art():
+    if os.path.exists(ASCII_ART_PATH):
+        with open(ASCII_ART_PATH, "r") as f:
+            return f.read()
+    return ""
+
 
 app = FastAPI(title="Torrent Maker Backend")
 

@@ -1,3 +1,219 @@
+/* Centered screen for main menu, upload, and details */
+.center-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+}
+
+.menu-title {
+  font-size: 2rem;
+  margin-bottom: 2rem;
+}
+.menu-btn {
+  width: 350px;
+  padding: 1.2rem;
+  margin: 0.7rem 0;
+  font-size: 1.3rem;
+  border-radius: 12px;
+  border: 2px solid #444;
+  background: #23233a;
+  color: #eee;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+  box-shadow: 2px 2px 0 #111;
+}
+.menu-btn:hover {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+}
+.exit-btn {
+  margin-top: 2rem;
+  background: #252540;
+  color: #f87171;
+  border-color: #f87171;
+}
+.exit-btn:hover {
+  background: #f87171;
+  color: #fff;
+}
+.corner-icons {
+  position: fixed;
+  left: 2rem;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+#settings-icon,
+#github-icon {
+  font-size: 2.2rem;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+#settings-icon:hover,
+#github-icon:hover {
+  opacity: 1;
+}
+
+/* Upload box */
+.upload-box {
+  width: 500px;
+  height: 200px;
+  border: 2.5px solid #444;
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #bbb;
+  background: #181828;
+  margin: 2rem 0;
+  cursor: pointer;
+  transition: border 0.2s, background 0.2s;
+}
+.upload-box:hover,
+.upload-box.drag-over {
+  border-color: #4a9eff;
+  background: #23233a;
+  color: #fff;
+}
+
+/* Movie details form */
+#movie-details-form {
+  margin-top: 2rem;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+#movie-details-form label {
+  font-size: 1.1rem;
+  margin-bottom: 0.2rem;
+}
+#movie-details-form input[type="text"] {
+  width: 100%;
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: 1.5px solid #444;
+  background: #181828;
+  color: #eee;
+  font-size: 1.1rem;
+  margin-top: 0.2rem;
+}
+.row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.row label {
+  flex: 1;
+}
+
+/* Torrent status tree */
+.torrent-status-box {
+  border: 2px solid #444;
+  border-radius: 22px;
+  padding: 1.2rem 2rem;
+  margin-bottom: 2rem;
+  background: #181828;
+  width: 420px;
+}
+.torrent-status-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  text-decoration: underline;
+}
+#torrent-tree {
+  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
+  font-size: 1.05rem;
+  color: #eee;
+  margin: 0;
+}
+/* Menu and button styles for new UI */
+.main-btn {
+  display: block;
+  margin: 2rem auto;
+  padding: 1rem 2.5rem;
+  font-size: 1.3rem;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.main-btn:hover {
+  background: #2563eb;
+}
+.type-btn {
+  margin: 1rem 1rem 1rem 0;
+  padding: 0.7rem 2rem;
+  font-size: 1.1rem;
+  background: #252540;
+  color: #eee;
+  border: 1px solid #4a9eff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.type-btn:hover {
+  background: #4a9eff;
+  color: #fff;
+}
+.wip {
+  color: #fbbf24;
+  font-size: 0.9em;
+  margin-left: 0.3em;
+}
+#movie-upload input[type="file"] {
+  margin: 1.5rem 0;
+  color: #eee;
+}
+#movie-upload-status {
+  margin-top: 1rem;
+  color: #4a9eff;
+}
+#torrent-details {
+  background: #23233a;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-top: 2rem;
+  color: #eee;
+}
+#torrent-details label {
+  display: block;
+  margin-bottom: 1rem;
+}
+#torrent-details input[type="text"] {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #444;
+  background: #181828;
+  color: #eee;
+  margin-top: 0.3rem;
+}
+#torrent-details button[type="submit"] {
+  margin-top: 1.5rem;
+  padding: 0.7rem 2.5rem;
+  font-size: 1.1rem;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#torrent-details button[type="submit"]:hover {
+  background: #2563eb;
+}
 * {
   margin: 0;
   padding: 0;
