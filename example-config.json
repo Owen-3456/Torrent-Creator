@@ -9,7 +9,7 @@
     "season": "{title}.S{season:02}.{quality}.{source}.{codec}-{group}"
   },
   "trackers": ["https://example.com/announce"],
-  "output_directory": "/path/to/output",
+  "output_directory": "~/Documents/torrents/output",
   "remote_paths": {
     "enabled": false,
     "path": ""
