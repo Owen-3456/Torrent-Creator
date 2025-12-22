@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "backend": "python src/backend/main.py",
-    "dev": "npm run backend & sleep 2 && npm run start"
+    "dev": "npm run start"
   },
   "author": "Kerbo",
   "license": "MIT",

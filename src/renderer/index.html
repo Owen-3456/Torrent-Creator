@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000" />
     <title>Torrent Maker</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -45,7 +45,7 @@
             <pre id="torrent-tree">(No files yet)</pre>
           </div>
           <form id="movie-details-form">
-            <label>Movie name<br /><input type="text" name="name" id="movie-name" /></label>
+            <label>Movie Name<br /><input type="text" name="name" id="movie-name" /></label>
             <div class="row">
               <label>Year<br /><input type="text" name="year" id="movie-year" /></label>
               <label>Runtime<br /><input type="text" name="runtime" id="movie-runtime" /></label>
@@ -54,6 +54,21 @@
               <label>Size<br /><input type="text" name="size" id="movie-size" /></label>
               <label>Language<br /><input type="text" name="language" id="movie-language" /></label>
             </div>
+            <div class="row">
+              <label>Resolution<br /><input type="text" name="resolution" id="movie-resolution" /></label>
+              <label>Source<br /><input type="text" name="source" id="movie-source" /></label>
+            </div>
+            <div class="row">
+              <label>Video Codec<br /><input type="text" name="video_codec" id="movie-video-codec" /></label>
+              <label>Audio Codec<br /><input type="text" name="audio_codec" id="movie-audio-codec" /></label>
+            </div>
+            <div class="row">
+              <label>Container<br /><input type="text" name="container" id="movie-container" /></label>
+              <label>Release Group<br /><input type="text" name="release_group" id="movie-release-group" /></label>
+            </div>
+            <label>TMDB ID<br /><input type="text" name="tmdb_id" id="movie-tmdb-id" /></label>
+            <label>IMDB ID<br /><input type="text" name="imdb_id" id="movie-imdb-id" /></label>
+            <label>Overview / Description<br /><textarea name="overview" id="movie-overview" rows="3"></textarea></label>
             <button type="submit" class="main-btn">Apply Edits</button>
           </form>
         </div>

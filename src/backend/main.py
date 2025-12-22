@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import shutil
 from guessit import guessit
 import os
 import json
@@ -44,6 +45,8 @@ class ParseResponse(BaseModel):
     filename: str
     parsed: dict
     media_type: str  # 'movie', 'episode', 'season'
+    folder: str
+    nfo_path: str
 
 
 @app.get("/health")
@@ -53,11 +56,20 @@ def health_check():
 
 
 @app.post("/parse", response_model=ParseResponse)
-def parse_filename(request: FileRequest):
-    """Parse a media filename to extract metadata"""
-    filename = os.path.basename(request.filepath)
+def parse_filename(file_req: FileRequest):
+    """Parse a media filename, move it, and create NFO"""
+    filepath = file_req.filepath
 
-    # Use guessit to parse the filename
+    # Validate and expand the filepath
+    filepath = os.path.expanduser(filepath)
+
+    if not os.path.isfile(filepath):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File does not exist: {filepath}"
+        )
+
+    filename = os.path.basename(filepath)
     parsed = guessit(filename)
 
     # Determine media type
@@ -68,10 +80,52 @@ def parse_filename(request: FileRequest):
     else:
         media_type = 'episode'
 
+    # Target folder: ~/Documents/torrents/[filename without extension]
+    base_name = os.path.splitext(filename)[0]
+    torrents_dir = os.path.expanduser('~/Documents/torrents')
+    target_dir = os.path.join(torrents_dir, base_name)
+
+    # Create the torrents directory and target folder
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create directory {target_dir}: {e}"
+        )
+
+    # Move the file to target directory
+    target_file = os.path.join(target_dir, filename)
+
+    # Only move if source and destination are different
+    if os.path.abspath(filepath) != os.path.abspath(target_file):
+        try:
+            shutil.move(filepath, target_file)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to move file from {filepath} to {target_file}: {e}"
+            )
+
+    # Create NFO file using base_name (filename without extension)
+    nfo_path = os.path.join(target_dir, f"{base_name}.NFO")
+    nfo_content = f"Title: {parsed.get('title', base_name)}\nYear: {parsed.get('year', '')}\nType: {media_type}\nFilename: {filename}\n"
+
+    try:
+        with open(nfo_path, "w") as nfo:
+            nfo.write(nfo_content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create NFO at {nfo_path}: {e}"
+        )
+
     return ParseResponse(
         filename=filename,
         parsed=dict(parsed),
-        media_type=media_type
+        media_type=media_type,
+        folder=target_dir,
+        nfo_path=nfo_path
     )
 
 

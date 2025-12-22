@@ -21,72 +21,119 @@ const movieYear = document.getElementById("movie-year");
 const movieRuntime = document.getElementById("movie-runtime");
 const movieSize = document.getElementById("movie-size");
 const movieLanguage = document.getElementById("movie-language");
+const movieResolution = document.getElementById("movie-resolution");
+const movieSource = document.getElementById("movie-source");
+const movieVideoCodec = document.getElementById("movie-video-codec");
+const movieAudioCodec = document.getElementById("movie-audio-codec");
+const movieContainer = document.getElementById("movie-container");
+const movieReleaseGroup = document.getElementById("movie-release-group");
+const movieTmdbId = document.getElementById("movie-tmdb-id");
+const movieImdbId = document.getElementById("movie-imdb-id");
+const movieOverview = document.getElementById("movie-overview");
 
-// Navigation logic
 function showScreen(screen) {
-  mainMenu.style.display = screen === "menu" ? "flex" : "none";
-  uploadMovie.style.display = screen === "upload" ? "flex" : "none";
-  movieDetails.style.display = screen === "details" ? "flex" : "none";
+  // Hide all screens
+  mainMenu.style.display = "none";
+  uploadMovie.style.display = "none";
+  movieDetails.style.display = "none";
+  if (screen === "menu") {
+    mainMenu.style.display = "flex";
+  } else if (screen === "upload") {
+    uploadMovie.style.display = "flex";
+  } else if (screen === "details") {
+    movieDetails.style.display = "flex";
+  }
 }
 
-menuMovie.onclick = () => showScreen("upload");
-menuEpisode.onclick = () => alert("Single Episode: WIP");
-menuSeason.onclick = () => alert("Season Pack: WIP");
-menuExit.onclick = () => window.close();
-settingsIcon.onclick = () => alert("Settings: WIP");
-githubIcon.onclick = () => window.open("https://github.com/", "_blank");
-
-// Upload logic
-uploadBox.addEventListener("click", () => movieFileInput.click());
-uploadBox.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  uploadBox.classList.add("drag-over");
+// Menu navigation
+menuMovie.addEventListener("click", () => {
+  showScreen("upload");
 });
-uploadBox.addEventListener("dragleave", () => uploadBox.classList.remove("drag-over"));
-uploadBox.addEventListener("drop", (e) => {
-  e.preventDefault();
-  uploadBox.classList.remove("drag-over");
-  const files = Array.from(e.dataTransfer.files);
-  if (files.length) handleMovieFile(files[0]);
+menuEpisode.addEventListener("click", () => {
+  alert("Single episode torrent creation is not yet implemented.");
 });
-movieFileInput.addEventListener("change", (e) => {
-  if (e.target.files.length) handleMovieFile(e.target.files[0]);
+menuSeason.addEventListener("click", () => {
+  alert("Season pack torrent creation is not yet implemented.");
+});
+menuExit.addEventListener("click", () => {
+  window.close();
 });
 
-async function handleMovieFile(file) {
-  movieUploadStatus.textContent = "Uploading...";
+uploadBox.addEventListener("click", () => {
+  movieFileInput.click();
+});
+
+movieFileInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  movieUploadStatus.textContent = "Processing file...";
+  console.log("Selected file:", file.path);
+
   try {
+    // Only send filepath as required by backend
     const resp = await window.api.fetch("/parse", {
       method: "POST",
-      body: JSON.stringify({ filepath: file.path, type: "movie" }),
+      body: JSON.stringify({ filepath: file.path }),
     });
-    if (resp && resp.success !== false) {
-      movieUploadStatus.textContent = "File uploaded. Fetching details...";
+
+    console.log("Backend response:", resp);
+
+    if (resp && resp.filename) {
+      movieUploadStatus.textContent = "File processed successfully!";
       showMovieDetails(resp, file);
     } else {
-      movieUploadStatus.textContent = "Failed to process file.";
+      movieUploadStatus.textContent = "Failed to process file - no response data.";
+      console.error("Invalid response:", resp);
     }
   } catch (err) {
     movieUploadStatus.textContent = "Error: " + err.message;
+    console.error("Upload error:", err);
   }
-}
+});
 
 function showMovieDetails(data, file) {
   showScreen("details");
   // Example tree, replace with real output if available
   const base = file.name.replace(/\.[^.]+$/, "");
   torrentTree.textContent = `.` + `\n└── ${base}/` + `\n    ├── ${file.name}` + `\n    └── ${base}.NFO`;
-  // Fill form fields
-  movieName.value = data.parsed && data.parsed.title ? data.parsed.title : guessTitleFromFilename(file.name);
-  movieYear.value = data.parsed && data.parsed.year ? data.parsed.year : "";
-  movieRuntime.value = data.parsed && data.parsed.runtime ? data.parsed.runtime : "";
+  // Fill form fields with backend or fallback values
+  const p = data.parsed || {};
+  movieName.value = p.title || guessTitleFromFilename(file.name);
+  movieYear.value = p.year || "";
+  movieRuntime.value = p.runtime || "";
   movieSize.value = formatSize(file.size);
-  movieLanguage.value = data.parsed && data.parsed.language ? data.parsed.language : "";
+  movieLanguage.value = p.language || "";
+  movieResolution.value = p.resolution || "";
+  movieSource.value = p.source || "";
+  movieVideoCodec.value = p.video_codec || p.codec || "";
+  movieAudioCodec.value = p.audio_codec || "";
+  movieContainer.value = p.container || "";
+  movieReleaseGroup.value = p.group || "";
+  movieTmdbId.value = p.tmdb_id || "";
+  movieImdbId.value = p.imdb_id || "";
+  movieOverview.value = p.overview || "";
 }
 
 movieDetailsForm.onsubmit = (e) => {
   e.preventDefault();
-  alert("Apply Edits: WIP");
+  // Gather all form data
+  const formData = {
+    name: movieName.value,
+    year: movieYear.value,
+    runtime: movieRuntime.value,
+    size: movieSize.value,
+    language: movieLanguage.value,
+    resolution: movieResolution.value,
+    source: movieSource.value,
+    video_codec: movieVideoCodec.value,
+    audio_codec: movieAudioCodec.value,
+    container: movieContainer.value,
+    release_group: movieReleaseGroup.value,
+    tmdb_id: movieTmdbId.value,
+    imdb_id: movieImdbId.value,
+    overview: movieOverview.value,
+  };
+  alert("Apply Edits: " + JSON.stringify(formData, null, 2));
 };
 
 // Check backend connection
@@ -101,89 +148,6 @@ async function checkBackend() {
     backendStatus.textContent = "Not running";
     backendStatus.className = "disconnected";
   }
-}
-
-// Menu navigation
-createTorrentBtn.addEventListener("click", () => {
-  menu.style.display = "none";
-  typeSelect.style.display = "block";
-});
-
-typeBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const type = btn.getAttribute("data-type");
-    if (type === "movie") {
-      typeSelect.style.display = "none";
-      movieUpload.style.display = "block";
-    } else {
-      alert("This feature is a work in progress.");
-    }
-  });
-});
-
-movieFileInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  movieUploadStatus.textContent = "Uploading...";
-  try {
-    // Send file path to backend to copy to torrents dir and parse
-    const resp = await window.api.fetch("/parse", {
-      method: "POST",
-      body: JSON.stringify({ filepath: file.path, type: "movie" }),
-    });
-    if (resp && resp.success !== false) {
-      movieUploadStatus.textContent = "File uploaded. Fetching details...";
-      showTorrentDetails(resp, file);
-    } else {
-      movieUploadStatus.textContent = "Failed to process file.";
-    }
-  } catch (err) {
-    movieUploadStatus.textContent = "Error: " + err.message;
-  }
-});
-
-function showTorrentDetails(data, file) {
-  movieUpload.style.display = "none";
-  torrentDetails.style.display = "block";
-  // Try to get details from backend response, fallback to file object
-  const details = data.details || {};
-  const name = details.title || guessTitleFromFilename(file.name) || "";
-  const size = details.size || file.size;
-  const runtime = details.runtime || "";
-  const codec = details.codec || "";
-  const type = details.type || "Movie";
-
-  torrentDetails.innerHTML = `
-    <h2>Torrent Details</h2>
-    <form id="torrent-form">
-      <label>
-        Torrent Name:
-        <input type="text" name="name" value="${name}" required />
-      </label><br />
-      <label>
-        File Size:
-        <input type="text" name="size" value="${formatSize(size)}" required />
-      </label><br />
-      <label>
-        Runtime:
-        <input type="text" name="runtime" value="${runtime}" />
-      </label><br />
-      <label>
-        Codec:
-        <input type="text" name="codec" value="${codec}" />
-      </label><br />
-      <label>
-        Type:
-        <input type="text" name="type" value="${type}" readonly />
-      </label><br />
-      <button type="submit">Create Torrent</button>
-    </form>
-  `;
-  document.getElementById("torrent-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    // TODO: send details to backend to create torrent
-    alert("Torrent creation not yet implemented.");
-  });
 }
 
 function guessTitleFromFilename(filename) {

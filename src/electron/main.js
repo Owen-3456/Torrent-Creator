@@ -1,7 +1,24 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
+const { spawn } = require("child_process");
 
 let mainWindow;
+let backendProcess;
+
+function startBackend() {
+  // Start the backend server as a child process
+  backendProcess = spawn("python", [path.join(__dirname, "../backend/main.py")], {
+    stdio: "inherit",
+    shell: false,
+  });
+}
+
+function stopBackend() {
+  if (backendProcess) {
+    backendProcess.kill();
+    backendProcess = null;
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -20,9 +37,13 @@ function createWindow() {
   mainWindow.webContents.openDevTools();
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  startBackend();
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
+  stopBackend();
   if (process.platform !== "darwin") {
     app.quit();
   }
