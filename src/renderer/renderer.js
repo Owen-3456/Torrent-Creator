@@ -78,6 +78,9 @@ const movieReleaseGroup = document.getElementById("movie-release-group");
 const movieTmdbId = document.getElementById("movie-tmdb-id");
 const movieImdbId = document.getElementById("movie-imdb-id");
 const movieOverview = document.getElementById("movie-overview");
+const movieBitDepth = document.getElementById("movie-bit-depth");
+const movieHdrFormat = document.getElementById("movie-hdr-format");
+const movieAudioChannels = document.getElementById("movie-audio-channels");
 const detailsBack = document.getElementById("details-back");
 
 // TMDB Search elements
@@ -212,12 +215,32 @@ async function loadTorrentList() {
         const item = document.createElement("div");
         item.className = "torrent-list-item";
         item.innerHTML = `
-          <span class="torrent-name">${torrent.name}</span>
-          <span class="torrent-files">${torrent.file_count} file(s)</span>
+          <div class="torrent-info">
+            <span class="torrent-name">${torrent.name}</span>
+            <span class="torrent-files">${torrent.file_count} file(s)</span>
+          </div>
+          <button class="delete-btn" title="Delete torrent">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
         `;
-        item.addEventListener("click", () => {
+
+        const torrentInfo = item.querySelector(".torrent-info");
+        const deleteBtn = item.querySelector(".delete-btn");
+
+        torrentInfo.addEventListener("click", () => {
           loadTorrentDetails(torrent.path);
         });
+
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          confirmDeleteTorrent(torrent);
+        });
+
         torrentListContainer.appendChild(item);
       });
     } else {
@@ -246,6 +269,41 @@ async function loadTorrentDetails(folderPath) {
   }
 }
 
+async function confirmDeleteTorrent(torrent) {
+  try {
+    // Get delete capability info from backend
+    const capability = await window.api.fetch("/system/delete-capability");
+
+    const confirmMessage = `Are you sure you want to delete "${torrent.name}"?\n\n${capability.message}`;
+
+    if (confirm(confirmMessage)) {
+      await deleteTorrent(torrent);
+    }
+  } catch (error) {
+    console.error("Failed to get delete capability:", error);
+    // Fallback confirmation
+    if (confirm(`Are you sure you want to delete "${torrent.name}"?`)) {
+      await deleteTorrent(torrent);
+    }
+  }
+}
+
+async function deleteTorrent(torrent) {
+  try {
+    const response = await window.api.fetch("/torrent", {
+      method: "DELETE",
+      body: JSON.stringify({ folder_path: torrent.path }),
+    });
+
+    if (response.success) {
+      // Reload the torrent list
+      loadTorrentList();
+    }
+  } catch (error) {
+    alert("Failed to delete torrent: " + error.message);
+  }
+}
+
 // ============================================
 // Movie Details Screen
 // ============================================
@@ -269,18 +327,22 @@ function showMovieDetails(data) {
 
   // Fill form fields with parsed data
   const parsed = data.parsed || {};
+  const metadata = data.metadata || {};
 
   movieName.value = parsed.title || baseName;
   movieYear.value = parsed.year || "";
-  movieRuntime.value = "";
-  movieSize.value = "";
+  movieRuntime.value = metadata.duration || "";
+  movieSize.value = metadata.file_size || "";
   movieLanguage.value = parsed.language || "";
-  movieResolution.value = parsed.resolution || "";
+  movieResolution.value = metadata.resolution || parsed.resolution || "";
   movieSource.value = parsed.source || "";
-  movieVideoCodec.value = parsed.video_codec || "";
-  movieAudioCodec.value = parsed.audio_codec || "";
+  movieVideoCodec.value = metadata.video_codec || parsed.video_codec || "";
+  movieAudioCodec.value = metadata.audio_codec || parsed.audio_codec || "";
   movieContainer.value = parsed.container || "";
   movieReleaseGroup.value = parsed.release_group || "";
+  movieBitDepth.value = metadata.bit_depth || "";
+  movieHdrFormat.value = metadata.hdr_format || "";
+  movieAudioChannels.value = metadata.audio_channels || "";
   movieTmdbId.value = "";
   movieImdbId.value = "";
   movieOverview.value = "";
@@ -288,6 +350,11 @@ function showMovieDetails(data) {
   // Pre-fill TMDB search with movie name and clear previous results
   tmdbSearchInput.value = parsed.title || "";
   tmdbSearchResults.innerHTML = "";
+
+  // Auto-select first TMDB result if we have a title
+  if (parsed.title) {
+    autoSelectFirstTmdbResult(parsed.title);
+  }
 }
 
 movieDetailsForm.addEventListener("submit", (e) => {
@@ -317,6 +384,27 @@ movieDetailsForm.addEventListener("submit", (e) => {
 // ============================================
 // TMDB Search
 // ============================================
+async function autoSelectFirstTmdbResult(query) {
+  try {
+    const response = await window.api.fetch("/tmdb/search", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      // Get detailed movie info for the first result
+      const firstMovie = response.results[0];
+      const movieResponse = await window.api.fetch(`/tmdb/movie/${firstMovie.id}`);
+
+      if (movieResponse.success && movieResponse.movie) {
+        fillMovieDetails(movieResponse.movie);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to auto-select TMDB result:", error);
+  }
+}
+
 tmdbSearchBtn.addEventListener("click", () => {
   performTmdbSearch();
 });
@@ -405,7 +493,17 @@ async function selectMovie(movieId, clickedItem) {
 function fillMovieDetails(movie) {
   movieName.value = movie.title || "";
   movieYear.value = movie.year || "";
-  movieRuntime.value = movie.runtime ? `${movie.runtime} min` : "";
+
+  // Convert runtime from minutes to HH:MM:SS format
+  if (movie.runtime) {
+    const totalMinutes = movie.runtime;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    movieRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+  } else {
+    movieRuntime.value = "";
+  }
+
   movieTmdbId.value = movie.tmdb_id || "";
   movieImdbId.value = movie.imdb_id || "";
   movieOverview.value = movie.overview || "";

@@ -6,7 +6,16 @@ from guessit import guessit
 import os
 import json
 import httpx
+import platform
+import subprocess
 from typing import Optional
+
+# Try to import send2trash for safe deletion
+try:
+    from send2trash import send2trash
+    HAS_TRASH = True
+except ImportError:
+    HAS_TRASH = False
 
 # Config paths
 CONFIG_DIR = os.path.expanduser("~/.torrent-creator")
@@ -220,6 +229,9 @@ def parse_and_process_file(file_req: FileRequest):
     # Parse filename with guessit
     parsed = guessit(filename)
 
+    # Extract file metadata using ffprobe
+    file_metadata = get_file_metadata(filepath)
+
     # Determine media type
     parsed_type = parsed.get("type", "")
     if parsed_type == "movie":
@@ -263,6 +275,7 @@ def parse_and_process_file(file_req: FileRequest):
         "success": True,
         "filename": filename,
         "parsed": parsed_dict,
+        "metadata": file_metadata,
         "media_type": media_type,
         "target_folder": target_folder,
         "nfo_path": nfo_path
@@ -324,6 +337,13 @@ def get_torrent_details(folder_req: FolderRequest):
     parsed = guessit(video_file)
     parsed_dict = serialize_parsed(parsed)
 
+    # Extract metadata from the actual video file if it exists
+    file_metadata = {}
+    if video_file:
+        video_file_path = os.path.join(folder_path, video_file)
+        if os.path.exists(video_file_path):
+            file_metadata = get_file_metadata(video_file_path)
+
     parsed_type = parsed.get("type", "")
     if parsed_type == "movie":
         media_type = "movie"
@@ -338,10 +358,75 @@ def get_torrent_details(folder_req: FolderRequest):
         "success": True,
         "filename": video_file,
         "parsed": parsed_dict,
+        "metadata": file_metadata,
         "media_type": media_type,
         "target_folder": folder_path,
         "files": files
     }
+
+
+@app.delete("/torrent")
+async def delete_torrent(folder_req: FolderRequest):
+    """Delete a torrent folder - moves to trash/recycle bin if available."""
+    folder_path = folder_req.folder_path
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder not found: {folder_path}"
+        )
+
+    # Expand path if needed
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    try:
+        if HAS_TRASH:
+            # Use send2trash to move to recycle bin/trash
+            send2trash(folder_path)
+            return {
+                "success": True,
+                "message": "Torrent moved to trash",
+                "method": "trash"
+            }
+        else:
+            # Permanently delete if send2trash not available
+            shutil.rmtree(folder_path)
+            return {
+                "success": True,
+                "message": "Torrent permanently deleted",
+                "method": "permanent"
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete torrent: {str(e)}"
+        )
+
+
+@app.get("/system/delete-capability")
+def get_delete_capability():
+    """Get information about delete capabilities on this system."""
+    system = platform.system()
+
+    return {
+        "has_trash": HAS_TRASH,
+        "platform": system,
+        "message": get_delete_message(system, HAS_TRASH)
+    }
+
+
+def get_delete_message(system: str, has_trash: bool) -> str:
+    """Get appropriate delete confirmation message for the platform."""
+    if has_trash:
+        if system == "Windows":
+            return "This torrent will be moved to the Recycle Bin."
+        elif system == "Darwin":  # macOS
+            return "This torrent will be moved to the Trash."
+        else:  # Linux and others
+            return "This torrent will be moved to the Trash."
+    else:
+        return "WARNING: This torrent will be PERMANENTLY deleted. This action cannot be undone."
 
 
 # ============================================
@@ -446,6 +531,171 @@ async def tmdb_get_movie(movie_id: int):
         }
 
         return {"success": True, "movie": result}
+
+
+# ============================================
+# File Metadata Extraction
+# ============================================
+def get_file_metadata(filepath: str) -> dict:
+    """Extract metadata from video file using ffprobe."""
+    metadata = {
+        "resolution": None,
+        "video_codec": None,
+        "audio_codec": None,
+        "file_size": None,
+        "duration": None,
+        "bit_depth": None,
+        "hdr_format": None,
+        "audio_channels": None
+    }
+
+    # Get file size
+    try:
+        file_size_bytes = os.path.getsize(filepath)
+        # Convert to human-readable format
+        if file_size_bytes >= 1024**3:  # GB
+            metadata["file_size"] = f"{file_size_bytes / (1024**3):.2f} GB"
+        elif file_size_bytes >= 1024**2:  # MB
+            metadata["file_size"] = f"{file_size_bytes / (1024**2):.2f} MB"
+        else:
+            metadata["file_size"] = f"{file_size_bytes / 1024:.2f} KB"
+    except Exception as e:
+        print(f"Error getting file size: {e}")
+
+    # Try to use ffprobe
+    try:
+        # Check if ffprobe is available
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filepath],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+
+            # Extract video stream info
+            video_stream = None
+            audio_stream = None
+
+            for stream in data.get("streams", []):
+                if stream.get("codec_type") == "video" and not video_stream:
+                    video_stream = stream
+                elif stream.get("codec_type") == "audio" and not audio_stream:
+                    audio_stream = stream
+
+            if video_stream:
+                # Resolution
+                width = video_stream.get("width")
+                height = video_stream.get("height")
+                if width and height:
+                    # Determine common resolution names
+                    if height >= 2160:
+                        metadata["resolution"] = "2160p"
+                    elif height >= 1440:
+                        metadata["resolution"] = "1440p"
+                    elif height >= 1080:
+                        metadata["resolution"] = "1080p"
+                    elif height >= 720:
+                        metadata["resolution"] = "720p"
+                    elif height >= 576:
+                        metadata["resolution"] = "576p"
+                    elif height >= 480:
+                        metadata["resolution"] = "480p"
+                    else:
+                        metadata["resolution"] = f"{height}p"
+
+                # Video codec
+                codec_name = video_stream.get("codec_name", "")
+                if codec_name == "h264":
+                    metadata["video_codec"] = "x264"
+                elif codec_name == "hevc":
+                    metadata["video_codec"] = "x265"
+                elif codec_name == "av1":
+                    metadata["video_codec"] = "AV1"
+                elif codec_name == "vp9":
+                    metadata["video_codec"] = "VP9"
+                else:
+                    metadata["video_codec"] = codec_name.upper()
+
+                # Bit depth
+                pix_fmt = video_stream.get("pix_fmt", "")
+                if "10le" in pix_fmt or "10be" in pix_fmt:
+                    metadata["bit_depth"] = "10-bit"
+                elif "12le" in pix_fmt or "12be" in pix_fmt:
+                    metadata["bit_depth"] = "12-bit"
+                else:
+                    metadata["bit_depth"] = "8-bit"
+
+                # HDR format (check color transfer and color space)
+                color_transfer = video_stream.get("color_transfer", "")
+                color_space = video_stream.get("color_space", "")
+
+                if "smpte2084" in color_transfer.lower():
+                    metadata["hdr_format"] = "HDR10"
+                elif "arib-std-b67" in color_transfer.lower():
+                    metadata["hdr_format"] = "HLG"
+                elif "bt2020" in color_space.lower() and metadata["bit_depth"] == "10-bit":
+                    metadata["hdr_format"] = "HDR"
+
+            if audio_stream:
+                # Audio codec
+                codec_name = audio_stream.get("codec_name", "")
+                if codec_name == "aac":
+                    metadata["audio_codec"] = "AAC"
+                elif codec_name == "ac3":
+                    metadata["audio_codec"] = "AC3"
+                elif codec_name == "eac3":
+                    metadata["audio_codec"] = "EAC3"
+                elif codec_name == "dts":
+                    metadata["audio_codec"] = "DTS"
+                elif codec_name == "truehd":
+                    metadata["audio_codec"] = "TrueHD"
+                elif codec_name == "flac":
+                    metadata["audio_codec"] = "FLAC"
+                elif codec_name == "opus":
+                    metadata["audio_codec"] = "Opus"
+                elif codec_name == "vorbis":
+                    metadata["audio_codec"] = "Vorbis"
+                else:
+                    metadata["audio_codec"] = codec_name.upper()
+
+                # Audio channels
+                channels = audio_stream.get("channels")
+                if channels:
+                    if channels == 1:
+                        metadata["audio_channels"] = "1.0"
+                    elif channels == 2:
+                        metadata["audio_channels"] = "2.0"
+                    elif channels == 6:
+                        metadata["audio_channels"] = "5.1"
+                    elif channels == 8:
+                        metadata["audio_channels"] = "7.1"
+                    else:
+                        metadata["audio_channels"] = f"{channels}.0"
+
+            # Duration
+            format_data = data.get("format", {})
+            duration_seconds = format_data.get("duration")
+            if duration_seconds:
+                try:
+                    total_seconds = int(float(duration_seconds))
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    seconds = total_seconds % 60
+                    metadata["duration"] = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                except:
+                    pass
+
+    except FileNotFoundError:
+        print("ffprobe not found - metadata extraction unavailable")
+    except subprocess.TimeoutExpired:
+        print("ffprobe timed out")
+    except Exception as e:
+        print(f"Error running ffprobe: {e}")
+
+    return metadata
 
 
 # ============================================

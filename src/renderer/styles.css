@@ -327,7 +327,6 @@ main {
   align-items: center;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
@@ -339,10 +338,20 @@ main {
   background: var(--bg-hover);
 }
 
+.torrent-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  cursor: pointer;
+  gap: 1rem;
+}
+
 .torrent-name {
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-primary);
+  flex: 1;
 }
 
 .torrent-files {
@@ -351,6 +360,33 @@ main {
   background: var(--bg-tertiary);
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.delete-btn:active {
+  transform: scale(0.95);
 }
 
 .torrent-list-container .loading,
