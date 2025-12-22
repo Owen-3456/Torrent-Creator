@@ -34,6 +34,33 @@ const listBack = document.getElementById("list-back");
 const settingsIcon = document.getElementById("settings-icon");
 const githubIcon = document.getElementById("github-icon");
 
+// Settings screen
+const settingsScreen = document.getElementById("settings");
+const settingsClose = document.getElementById("settings-close");
+const settingsCancel = document.getElementById("settings-cancel");
+const settingsSave = document.getElementById("settings-save");
+const tabBtns = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+
+// Settings form elements
+const settingTmdbKey = document.getElementById("setting-tmdb-key");
+const settingTvdbKey = document.getElementById("setting-tvdb-key");
+const settingReleaseGroup = document.getElementById("setting-release-group");
+const settingOutputDir = document.getElementById("setting-output-dir");
+const settingTemplateMovie = document.getElementById("setting-template-movie");
+const settingTemplateEpisode = document.getElementById("setting-template-episode");
+const settingTemplateSeason = document.getElementById("setting-template-season");
+const settingNfoNotes = document.getElementById("setting-nfo-notes");
+const settingNfoNotesText = document.getElementById("setting-nfo-notes-text");
+const settingAsciiArt = document.getElementById("setting-ascii-art");
+const tmdbLink = document.getElementById("tmdb-link");
+const tvdbLink = document.getElementById("tvdb-link");
+
+// Template previews
+const previewMovie = document.getElementById("preview-movie");
+const previewEpisode = document.getElementById("preview-episode");
+const previewSeason = document.getElementById("preview-season");
+
 // Movie details screen
 const torrentTree = document.getElementById("torrent-tree");
 const movieDetailsForm = document.getElementById("movie-details-form");
@@ -52,6 +79,11 @@ const movieTmdbId = document.getElementById("movie-tmdb-id");
 const movieImdbId = document.getElementById("movie-imdb-id");
 const movieOverview = document.getElementById("movie-overview");
 const detailsBack = document.getElementById("details-back");
+
+// TMDB Search elements
+const tmdbSearchInput = document.getElementById("tmdb-search-input");
+const tmdbSearchBtn = document.getElementById("tmdb-search-btn");
+const tmdbSearchResults = document.getElementById("tmdb-search-results");
 
 // Track current torrent being edited
 let currentTorrentFolder = null;
@@ -252,6 +284,10 @@ function showMovieDetails(data) {
   movieTmdbId.value = "";
   movieImdbId.value = "";
   movieOverview.value = "";
+
+  // Pre-fill TMDB search with movie name and clear previous results
+  tmdbSearchInput.value = parsed.title || "";
+  tmdbSearchResults.innerHTML = "";
 }
 
 movieDetailsForm.addEventListener("submit", (e) => {
@@ -279,6 +315,123 @@ movieDetailsForm.addEventListener("submit", (e) => {
 });
 
 // ============================================
+// TMDB Search
+// ============================================
+tmdbSearchBtn.addEventListener("click", () => {
+  performTmdbSearch();
+});
+
+tmdbSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    performTmdbSearch();
+  }
+});
+
+async function performTmdbSearch() {
+  const query = tmdbSearchInput.value.trim();
+  if (!query) return;
+
+  tmdbSearchBtn.disabled = true;
+  tmdbSearchResults.innerHTML = '<div class="search-loading">Searching...</div>';
+
+  try {
+    const response = await window.api.fetch("/tmdb/search", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      renderSearchResults(response.results);
+    } else {
+      tmdbSearchResults.innerHTML = '<div class="search-empty">No movies found</div>';
+    }
+  } catch (error) {
+    tmdbSearchResults.innerHTML = `<div class="search-error">${error.message}</div>`;
+  } finally {
+    tmdbSearchBtn.disabled = false;
+  }
+}
+
+function renderSearchResults(results) {
+  tmdbSearchResults.innerHTML = "";
+
+  results.forEach((movie) => {
+    const item = document.createElement("div");
+    item.className = "search-result-item";
+
+    const posterUrl = movie.poster_path
+      ? `https://image.tmdb.org/t/p/w92${movie.poster_path}`
+      : null;
+
+    item.innerHTML = `
+      ${
+        posterUrl
+          ? `<img class="search-result-poster" src="${posterUrl}" alt="${movie.title}" />`
+          : `<div class="search-result-poster no-poster">No Image</div>`
+      }
+      <div class="search-result-info">
+        <div class="search-result-title">${movie.title}</div>
+        <div class="search-result-meta">${movie.year || "Unknown year"}${movie.vote_average ? ` • ${movie.vote_average.toFixed(1)}/10` : ""}</div>
+        ${movie.overview ? `<div class="search-result-overview">${movie.overview}</div>` : ""}
+      </div>
+    `;
+
+    item.addEventListener("click", (e) => {
+      selectMovie(movie.id, e.currentTarget);
+    });
+
+    tmdbSearchResults.appendChild(item);
+  });
+}
+
+async function selectMovie(movieId, clickedItem) {
+  // Mark selected item
+  const items = tmdbSearchResults.querySelectorAll(".search-result-item");
+  items.forEach((item) => item.classList.remove("selected"));
+  clickedItem.classList.add("selected");
+
+  try {
+    const response = await window.api.fetch(`/tmdb/movie/${movieId}`);
+
+    if (response.success && response.movie) {
+      fillMovieDetails(response.movie);
+    }
+  } catch (error) {
+    console.error("Failed to fetch movie details:", error);
+  }
+}
+
+function fillMovieDetails(movie) {
+  movieName.value = movie.title || "";
+  movieYear.value = movie.year || "";
+  movieRuntime.value = movie.runtime ? `${movie.runtime} min` : "";
+  movieTmdbId.value = movie.tmdb_id || "";
+  movieImdbId.value = movie.imdb_id || "";
+  movieOverview.value = movie.overview || "";
+
+  // Set language from spoken languages or original language
+  if (movie.spoken_languages && movie.spoken_languages.length > 0) {
+    movieLanguage.value = movie.spoken_languages[0];
+  } else if (movie.original_language) {
+    // Convert language code to name
+    const langNames = {
+      en: "English",
+      es: "Spanish",
+      fr: "French",
+      de: "German",
+      it: "Italian",
+      ja: "Japanese",
+      ko: "Korean",
+      zh: "Chinese",
+      ru: "Russian",
+      pt: "Portuguese",
+    };
+    movieLanguage.value = langNames[movie.original_language] || movie.original_language;
+  }
+}
+
+// ============================================
 // Backend Connection Check
 // ============================================
 async function checkBackendConnection() {
@@ -301,11 +454,182 @@ async function checkBackendConnection() {
 // Corner Icon Handlers
 // ============================================
 settingsIcon.addEventListener("click", () => {
-  alert("Settings page is not yet implemented.");
+  openSettings();
 });
 
 githubIcon.addEventListener("click", () => {
   window.api.openExternal("https://github.com/Owen-3456/Torrent-Creator");
+});
+
+// ============================================
+// Settings Screen
+// ============================================
+let originalConfig = null;
+let originalAsciiArt = null;
+
+function openSettings() {
+  settingsScreen.style.display = "flex";
+  loadSettings();
+}
+
+function closeSettings() {
+  settingsScreen.style.display = "none";
+}
+
+settingsClose.addEventListener("click", closeSettings);
+settingsCancel.addEventListener("click", closeSettings);
+
+// Tab switching
+tabBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tabId = btn.dataset.tab;
+
+    // Update button states
+    tabBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // Update content visibility
+    tabContents.forEach((content) => {
+      content.classList.remove("active");
+      if (content.id === `tab-${tabId}`) {
+        content.classList.add("active");
+      }
+    });
+  });
+});
+
+// External links
+tmdbLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  window.api.openExternal("https://www.themoviedb.org/settings/api");
+});
+
+tvdbLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  window.api.openExternal("https://thetvdb.com/api-information");
+});
+
+async function loadSettings() {
+  try {
+    const response = await window.api.fetch("/config");
+
+    if (response.success) {
+      originalConfig = response.config;
+      originalAsciiArt = response.ascii_art;
+
+      // Populate API Keys tab
+      settingTmdbKey.value = originalConfig.api_keys?.tmdb || "";
+      settingTvdbKey.value = originalConfig.api_keys?.tvdb || "";
+      settingReleaseGroup.value = originalConfig.release_group || "";
+      settingOutputDir.value = originalConfig.output_directory || "";
+
+      // Populate Naming Templates tab
+      const templates = originalConfig.naming_templates || {};
+      settingTemplateMovie.value = templates.movie || "";
+      settingTemplateEpisode.value = templates.episode || "";
+      settingTemplateSeason.value = templates.season || "";
+
+      // Populate NFO tab
+      const nfoConfig = originalConfig.nfo || {};
+      settingNfoNotes.checked = nfoConfig.include_notes !== false;
+      settingNfoNotesText.value = nfoConfig.notes_template || "";
+      settingAsciiArt.value = originalAsciiArt || "";
+
+      // Update template previews
+      updateTemplatePreviews();
+    }
+  } catch (error) {
+    console.error("Failed to load settings:", error);
+  }
+}
+
+function updateTemplatePreviews() {
+  // Sample data for preview
+  const sampleData = {
+    title: "Movie.Name",
+    year: "2024",
+    quality: "1080p",
+    source: "BluRay",
+    codec: "x264",
+    group: settingReleaseGroup.value || "GROUP",
+    season: "01",
+    episode: "05",
+    episode_title: "Episode.Title",
+  };
+
+  // Generate preview from template
+  function applyTemplate(template) {
+    if (!template) return "";
+    let result = template;
+    result = result.replace("{title}", sampleData.title);
+    result = result.replace("{year}", sampleData.year);
+    result = result.replace("{quality}", sampleData.quality);
+    result = result.replace("{source}", sampleData.source);
+    result = result.replace("{codec}", sampleData.codec);
+    result = result.replace("{group}", sampleData.group);
+    result = result.replace("{season:02}", sampleData.season);
+    result = result.replace("{season}", sampleData.season);
+    result = result.replace("{episode:02}", sampleData.episode);
+    result = result.replace("{episode}", sampleData.episode);
+    result = result.replace("{episode_title}", sampleData.episode_title);
+    return result;
+  }
+
+  previewMovie.textContent = applyTemplate(settingTemplateMovie.value) || "No template set";
+  previewEpisode.textContent = applyTemplate(settingTemplateEpisode.value) || "No template set";
+  previewSeason.textContent = applyTemplate(settingTemplateSeason.value) || "No template set";
+}
+
+// Update previews when templates change
+settingTemplateMovie.addEventListener("input", updateTemplatePreviews);
+settingTemplateEpisode.addEventListener("input", updateTemplatePreviews);
+settingTemplateSeason.addEventListener("input", updateTemplatePreviews);
+settingReleaseGroup.addEventListener("input", updateTemplatePreviews);
+
+// Save settings
+settingsSave.addEventListener("click", async () => {
+  const config = {
+    api_keys: {
+      tmdb: settingTmdbKey.value,
+      tvdb: settingTvdbKey.value,
+    },
+    naming_templates: {
+      movie: settingTemplateMovie.value,
+      episode: settingTemplateEpisode.value,
+      season: settingTemplateSeason.value,
+    },
+    trackers: originalConfig?.trackers || [],
+    output_directory: settingOutputDir.value,
+    release_group: settingReleaseGroup.value,
+    nfo: {
+      include_notes: settingNfoNotes.checked,
+      notes_template: settingNfoNotesText.value,
+    },
+  };
+
+  try {
+    // Save config
+    const configResponse = await window.api.fetch("/config", {
+      method: "POST",
+      body: JSON.stringify({ config: config }),
+    });
+
+    // Save ASCII art if changed
+    const asciiArt = settingAsciiArt.value;
+    if (asciiArt !== originalAsciiArt) {
+      await window.api.fetch("/config/ascii-art", {
+        method: "POST",
+        body: JSON.stringify({ ascii_art: asciiArt }),
+      });
+    }
+
+    if (configResponse.success) {
+      closeSettings();
+    }
+  } catch (error) {
+    console.error("Failed to save settings:", error);
+    alert("Failed to save settings: " + error.message);
+  }
 });
 
 // ============================================

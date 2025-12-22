@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; img-src 'self' data:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; img-src 'self' data: https://image.tmdb.org" />
     <title>Torrent Creator</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -64,6 +64,23 @@
             <div class="torrent-status-title">Torrent Structure</div>
             <pre id="torrent-tree">(No files yet)</pre>
           </div>
+
+          <!-- TMDB Search Section -->
+          <div class="tmdb-search-section">
+            <div class="search-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <span>Search TMDB</span>
+            </div>
+            <div class="search-input-row">
+              <input type="text" id="tmdb-search-input" placeholder="Search for a movie..." />
+              <button type="button" class="search-btn" id="tmdb-search-btn">Search</button>
+            </div>
+            <div id="tmdb-search-results" class="search-results"></div>
+          </div>
+
           <form id="movie-details-form">
             <label>Movie Name<input type="text" name="name" id="movie-name" placeholder="Enter movie name" /></label>
             <div class="row">
@@ -94,6 +111,134 @@
               <button type="submit" class="main-btn">Save Changes</button>
             </div>
           </form>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings" class="settings-screen" style="display: none">
+          <div class="settings-header">
+            <h2>Settings</h2>
+            <button class="icon-btn" id="settings-close" title="Close">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="settings-tabs">
+            <button class="tab-btn active" data-tab="api-keys">API Keys</button>
+            <button class="tab-btn" data-tab="naming">Naming Templates</button>
+            <button class="tab-btn" data-tab="nfo">NFO Settings</button>
+          </div>
+
+          <div class="settings-content">
+            <!-- API Keys Tab -->
+            <div class="tab-content active" id="tab-api-keys">
+              <div class="settings-section">
+                <h3>API Keys</h3>
+                <p class="settings-description">Enter your API keys for metadata lookup. These are stored locally and never shared.</p>
+
+                <label>
+                  TMDB API Key
+                  <input type="password" id="setting-tmdb-key" placeholder="Enter your TMDB API key" />
+                  <span class="input-hint">Get your key at <a href="#" id="tmdb-link">themoviedb.org</a></span>
+                </label>
+
+                <label>
+                  TVDB API Key
+                  <input type="password" id="setting-tvdb-key" placeholder="Enter your TVDB API key" />
+                  <span class="input-hint">Get your key at <a href="#" id="tvdb-link">thetvdb.com</a></span>
+                </label>
+              </div>
+
+              <div class="settings-section">
+                <h3>General Settings</h3>
+
+                <label>
+                  Release Group
+                  <input type="text" id="setting-release-group" placeholder="GROUP" />
+                  <span class="input-hint">Your release group name used in filenames and NFO</span>
+                </label>
+
+                <label>
+                  Output Directory
+                  <input type="text" id="setting-output-dir" placeholder="~/Documents/torrents" />
+                  <span class="input-hint">Where processed torrents will be saved</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Naming Templates Tab -->
+            <div class="tab-content" id="tab-naming">
+              <div class="settings-section">
+                <h3>Naming Templates</h3>
+                <p class="settings-description">Customize how files are named. Available variables: {title}, {year}, {quality}, {source}, {codec}, {group}, {season}, {episode}, {episode_title}</p>
+
+                <label>
+                  Movie Template
+                  <input type="text" id="setting-template-movie" placeholder="{title}.{year}.{quality}.{source}.{codec}-{group}" />
+                </label>
+
+                <label>
+                  Episode Template
+                  <input type="text" id="setting-template-episode" placeholder="{title}.S{season:02}E{episode:02}.{episode_title}.{quality}.{source}.{codec}-{group}" />
+                </label>
+
+                <label>
+                  Season Pack Template
+                  <input type="text" id="setting-template-season" placeholder="{title}.S{season:02}.{quality}.{source}.{codec}-{group}" />
+                </label>
+              </div>
+
+              <div class="settings-section">
+                <h3>Template Preview</h3>
+                <div class="template-preview">
+                  <div class="preview-item">
+                    <span class="preview-label">Movie:</span>
+                    <code id="preview-movie">Movie.Name.2024.1080p.BluRay.x264-GROUP</code>
+                  </div>
+                  <div class="preview-item">
+                    <span class="preview-label">Episode:</span>
+                    <code id="preview-episode">Show.Name.S01E05.Episode.Title.1080p.WEB.x264-GROUP</code>
+                  </div>
+                  <div class="preview-item">
+                    <span class="preview-label">Season:</span>
+                    <code id="preview-season">Show.Name.S01.1080p.WEB.x264-GROUP</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NFO Settings Tab -->
+            <div class="tab-content" id="tab-nfo">
+              <div class="settings-section">
+                <h3>NFO Configuration</h3>
+
+                <label class="checkbox-label">
+                  <input type="checkbox" id="setting-nfo-notes" checked />
+                  <span>Include notes in NFO</span>
+                </label>
+
+                <label>
+                  Notes Template
+                  <input type="text" id="setting-nfo-notes-text" placeholder="Enjoy and seed!" />
+                  <span class="input-hint">This text appears at the bottom of the NFO file</span>
+                </label>
+              </div>
+
+              <div class="settings-section">
+                <h3>ASCII Art Header</h3>
+                <p class="settings-description">Custom ASCII art displayed at the top of NFO files. Use a monospace font for best results.</p>
+
+                <textarea id="setting-ascii-art" rows="10" placeholder="Enter your custom ASCII art here..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-footer">
+            <button class="menu-btn back-btn" id="settings-cancel">Cancel</button>
+            <button class="main-btn" id="settings-save">Save Settings</button>
+          </div>
         </div>
 
         <div id="status" class="status">
