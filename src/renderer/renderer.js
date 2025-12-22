@@ -2,17 +2,39 @@
 // DOM Elements
 // ============================================
 const backendStatus = document.getElementById("backend-status");
+
+// Screens
 const mainMenu = document.getElementById("main-menu");
-const menuMovie = document.getElementById("menu-movie");
-const menuEpisode = document.getElementById("menu-episode");
-const menuSeason = document.getElementById("menu-season");
+const selectType = document.getElementById("select-type");
+const uploadMovie = document.getElementById("upload-movie");
+const torrentList = document.getElementById("torrent-list");
+const movieDetails = document.getElementById("movie-details");
+
+// Main Menu buttons
+const menuCreate = document.getElementById("menu-create");
+const menuEdit = document.getElementById("menu-edit");
 const menuExit = document.getElementById("menu-exit");
 
-const uploadMovie = document.getElementById("upload-movie");
+// Type selection buttons
+const typeMovie = document.getElementById("type-movie");
+const typeEpisode = document.getElementById("type-episode");
+const typeSeason = document.getElementById("type-season");
+const typeBack = document.getElementById("type-back");
+
+// Upload screen
 const uploadBox = document.getElementById("upload-box");
 const movieUploadStatus = document.getElementById("movie-upload-status");
+const uploadBack = document.getElementById("upload-back");
 
-const movieDetails = document.getElementById("movie-details");
+// Torrent list screen
+const torrentListContainer = document.getElementById("torrent-list-container");
+const listBack = document.getElementById("list-back");
+
+// Corner icons
+const settingsIcon = document.getElementById("settings-icon");
+const githubIcon = document.getElementById("github-icon");
+
+// Movie details screen
 const torrentTree = document.getElementById("torrent-tree");
 const movieDetailsForm = document.getElementById("movie-details-form");
 const movieName = document.getElementById("movie-name");
@@ -29,20 +51,29 @@ const movieReleaseGroup = document.getElementById("movie-release-group");
 const movieTmdbId = document.getElementById("movie-tmdb-id");
 const movieImdbId = document.getElementById("movie-imdb-id");
 const movieOverview = document.getElementById("movie-overview");
+const detailsBack = document.getElementById("details-back");
+
+// Track current torrent being edited
+let currentTorrentFolder = null;
 
 // ============================================
 // Screen Navigation
 // ============================================
+const screens = [mainMenu, selectType, uploadMovie, torrentList, movieDetails];
+
 function showScreen(screen) {
-  mainMenu.style.display = "none";
-  uploadMovie.style.display = "none";
-  movieDetails.style.display = "none";
+  screens.forEach((s) => (s.style.display = "none"));
 
   if (screen === "menu") {
     mainMenu.style.display = "flex";
+  } else if (screen === "select-type") {
+    selectType.style.display = "flex";
   } else if (screen === "upload") {
     uploadMovie.style.display = "flex";
     resetUploadStatus();
+  } else if (screen === "torrent-list") {
+    torrentList.style.display = "flex";
+    loadTorrentList();
   } else if (screen === "details") {
     movieDetails.style.display = "flex";
   }
@@ -54,18 +85,14 @@ function resetUploadStatus() {
 }
 
 // ============================================
-// Menu Event Handlers
+// Main Menu Event Handlers
 // ============================================
-menuMovie.addEventListener("click", () => {
-  showScreen("upload");
+menuCreate.addEventListener("click", () => {
+  showScreen("select-type");
 });
 
-menuEpisode.addEventListener("click", () => {
-  alert("Single episode torrent creation is not yet implemented.");
-});
-
-menuSeason.addEventListener("click", () => {
-  alert("Season pack torrent creation is not yet implemented.");
+menuEdit.addEventListener("click", () => {
+  showScreen("torrent-list");
 });
 
 menuExit.addEventListener("click", () => {
@@ -73,24 +100,43 @@ menuExit.addEventListener("click", () => {
 });
 
 // ============================================
-// File Upload Handling
+// Type Selection Event Handlers
+// ============================================
+typeMovie.addEventListener("click", () => {
+  showScreen("upload");
+});
+
+typeEpisode.addEventListener("click", () => {
+  alert("Single episode torrent creation is not yet implemented.");
+});
+
+typeSeason.addEventListener("click", () => {
+  alert("Season pack torrent creation is not yet implemented.");
+});
+
+typeBack.addEventListener("click", () => {
+  showScreen("menu");
+});
+
+// ============================================
+// Upload Screen Event Handlers
 // ============================================
 uploadBox.addEventListener("click", async () => {
-  // Use native Electron file dialog
   const filepath = await window.api.selectFile();
-
   if (filepath) {
     handleFileUpload(filepath);
   }
 });
 
+uploadBack.addEventListener("click", () => {
+  showScreen("select-type");
+});
+
 async function handleFileUpload(filepath) {
-  // Show processing status
   movieUploadStatus.textContent = "Processing file...";
   movieUploadStatus.style.color = "#4a9eff";
 
   try {
-    // Send to backend
     const response = await window.api.fetch("/parse", {
       method: "POST",
       body: JSON.stringify({ filepath: filepath }),
@@ -99,8 +145,7 @@ async function handleFileUpload(filepath) {
     if (response.success) {
       movieUploadStatus.textContent = "File processed successfully!";
       movieUploadStatus.style.color = "#4ade80";
-
-      // Show the details screen with the response data
+      currentTorrentFolder = response.target_folder;
       showMovieDetails(response);
     } else {
       showError(response.error || "Failed to process file.");
@@ -116,17 +161,75 @@ function showError(message) {
 }
 
 // ============================================
-// Movie Details Display
+// Torrent List Screen
 // ============================================
+listBack.addEventListener("click", () => {
+  showScreen("menu");
+});
+
+async function loadTorrentList() {
+  torrentListContainer.innerHTML = '<p class="loading">Loading...</p>';
+
+  try {
+    const response = await window.api.fetch("/torrents");
+
+    if (response.torrents && response.torrents.length > 0) {
+      torrentListContainer.innerHTML = "";
+
+      response.torrents.forEach((torrent) => {
+        const item = document.createElement("div");
+        item.className = "torrent-list-item";
+        item.innerHTML = `
+          <span class="torrent-name">${torrent.name}</span>
+          <span class="torrent-files">${torrent.file_count} file(s)</span>
+        `;
+        item.addEventListener("click", () => {
+          loadTorrentDetails(torrent.path);
+        });
+        torrentListContainer.appendChild(item);
+      });
+    } else {
+      torrentListContainer.innerHTML = '<p class="empty">No torrents found. Create one first!</p>';
+    }
+  } catch (error) {
+    torrentListContainer.innerHTML = `<p class="error">Error loading torrents: ${error.message}</p>`;
+  }
+}
+
+async function loadTorrentDetails(folderPath) {
+  try {
+    const response = await window.api.fetch("/torrent-details", {
+      method: "POST",
+      body: JSON.stringify({ folder_path: folderPath }),
+    });
+
+    if (response.success) {
+      currentTorrentFolder = folderPath;
+      showMovieDetails(response);
+    } else {
+      alert("Failed to load torrent details: " + (response.error || "Unknown error"));
+    }
+  } catch (error) {
+    alert("Error loading torrent details: " + error.message);
+  }
+}
+
+// ============================================
+// Movie Details Screen
+// ============================================
+detailsBack.addEventListener("click", () => {
+  showScreen("menu");
+});
+
 function showMovieDetails(data) {
   showScreen("details");
 
-  // Build the torrent tree display from backend response
+  // Build the torrent tree display
   const filename = data.filename;
   const baseName = filename.replace(/\.[^.]+$/, "");
 
   torrentTree.textContent = [
-    ".",
+    "~/Documents/torrents/",
     `└── ${baseName}/`,
     `    ├── ${filename}`,
     `    └── ${baseName}.NFO`,
@@ -193,6 +296,17 @@ async function checkBackendConnection() {
     backendStatus.className = "disconnected";
   }
 }
+
+// ============================================
+// Corner Icon Handlers
+// ============================================
+settingsIcon.addEventListener("click", () => {
+  alert("Settings page is not yet implemented.");
+});
+
+githubIcon.addEventListener("click", () => {
+  window.api.openExternal("https://github.com/Owen-3456/Torrent-Creator");
+});
 
 // ============================================
 // Initialize

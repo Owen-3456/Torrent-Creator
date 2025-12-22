@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -52,6 +52,11 @@ ipcMain.handle("select-file", async () => {
   }
 
   return result.filePaths[0];
+});
+
+// Handle opening external URLs
+ipcMain.handle("open-external", async (_event, url) => {
+  await shell.openExternal(url);
 });
 
 app.whenReady().then(() => {

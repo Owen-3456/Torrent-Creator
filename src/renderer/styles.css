@@ -1,322 +1,550 @@
-#movie-details-form textarea {
-  width: 100%;
-  padding: 0.7rem;
-  border-radius: 8px;
-  border: 1.5px solid #444;
-  background: #181828;
-  color: #eee;
-  font-size: 1.1rem;
-  margin-top: 0.2rem;
-  resize: vertical;
-  min-height: 60px;
-  max-height: 200px;
-}
-#movie-details-form label {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 0.5rem;
-}
-.row {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-.row label {
-  flex: 1;
-}
-/* Centered screen for main menu, upload, and details */
-.center-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 70vh;
-}
-
-.menu-title {
-  font-size: 2rem;
-  margin-bottom: 2rem;
-}
-.menu-btn {
-  width: 350px;
-  padding: 1.2rem;
-  margin: 0.7rem 0;
-  font-size: 1.3rem;
-  border-radius: 12px;
-  border: 2px solid #444;
-  background: #23233a;
-  color: #eee;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border 0.2s;
-  box-shadow: 2px 2px 0 #111;
-}
-.menu-btn:hover {
-  background: #4a9eff;
-  color: #fff;
-  border-color: #4a9eff;
-}
-.exit-btn {
-  margin-top: 2rem;
-  background: #252540;
-  color: #f87171;
-  border-color: #f87171;
-}
-.exit-btn:hover {
-  background: #f87171;
-  color: #fff;
-}
-.corner-icons {
-  position: fixed;
-  left: 2rem;
-  bottom: 2rem;
-  right: 2rem;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-#settings-icon,
-#github-icon {
-  font-size: 2.2rem;
-  pointer-events: auto;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-#settings-icon:hover,
-#github-icon:hover {
-  opacity: 1;
-}
-
-/* Upload box */
-.upload-box {
-  width: 500px;
-  height: 200px;
-  border: 2.5px solid #444;
-  border-radius: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: #bbb;
-  background: #181828;
-  margin: 2rem 0;
-  cursor: pointer;
-  transition: border 0.2s, background 0.2s;
-}
-.upload-box:hover,
-.upload-box.drag-over {
-  border-color: #4a9eff;
-  background: #23233a;
-  color: #fff;
-}
-
-/* Movie details form */
-#movie-details-form {
-  margin-top: 2rem;
-  width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-}
-#movie-details-form label {
-  font-size: 1.1rem;
-  margin-bottom: 0.2rem;
-}
-#movie-details-form input[type="text"] {
-  width: 100%;
-  padding: 0.7rem;
-  border-radius: 8px;
-  border: 1.5px solid #444;
-  background: #181828;
-  color: #eee;
-  font-size: 1.1rem;
-  margin-top: 0.2rem;
-}
-.row {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-.row label {
-  flex: 1;
-}
-
-/* Torrent status tree */
-.torrent-status-box {
-  border: 2px solid #444;
-  border-radius: 22px;
-  padding: 1.2rem 2rem;
-  margin-bottom: 2rem;
-  background: #181828;
-  width: 420px;
-}
-.torrent-status-title {
-  font-size: 1.1rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  text-decoration: underline;
-}
-#torrent-tree {
-  font-family: "Fira Mono", "Consolas", "Menlo", monospace;
-  font-size: 1.05rem;
-  color: #eee;
-  margin: 0;
-}
-/* Menu and button styles for new UI */
-.main-btn {
-  display: block;
-  margin: 2rem auto;
-  padding: 1rem 2.5rem;
-  font-size: 1.3rem;
-  background: #4a9eff;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.main-btn:hover {
-  background: #2563eb;
-}
-.type-btn {
-  margin: 1rem 1rem 1rem 0;
-  padding: 0.7rem 2rem;
-  font-size: 1.1rem;
-  background: #252540;
-  color: #eee;
-  border: 1px solid #4a9eff;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-.type-btn:hover {
-  background: #4a9eff;
-  color: #fff;
-}
-.wip {
-  color: #fbbf24;
-  font-size: 0.9em;
-  margin-left: 0.3em;
-}
-#movie-upload input[type="file"] {
-  margin: 1.5rem 0;
-  color: #eee;
-}
-#movie-upload-status {
-  margin-top: 1rem;
-  color: #4a9eff;
-}
-#torrent-details {
-  background: #23233a;
-  border-radius: 8px;
-  padding: 2rem;
-  margin-top: 2rem;
-  color: #eee;
-}
-#torrent-details label {
-  display: block;
-  margin-bottom: 1rem;
-}
-#torrent-details input[type="text"] {
-  width: 100%;
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #444;
-  background: #181828;
-  color: #eee;
-  margin-top: 0.3rem;
-}
-#torrent-details button[type="submit"] {
-  margin-top: 1.5rem;
-  padding: 0.7rem 2.5rem;
-  font-size: 1.1rem;
-  background: #4a9eff;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-#torrent-details button[type="submit"]:hover {
-  background: #2563eb;
-}
+/* ============================================
+   CSS Reset & Base Styles
+   ============================================ */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
-  background: #1a1a2e;
-  color: #eee;
-  min-height: 100vh;
+:root {
+  /* Color Palette */
+  --bg-primary: #0d0d14;
+  --bg-secondary: #13131f;
+  --bg-tertiary: #1a1a2e;
+  --bg-elevated: #1e1e32;
+  --bg-hover: #252542;
+
+  --accent-primary: #6366f1;
+  --accent-secondary: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.3);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border-color: #2a2a45;
+  --border-hover: #3d3d5c;
+
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #f59e0b;
+
+  /* Spacing */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 }
 
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================
+   Layout
+   ============================================ */
 .container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 header {
   text-align: center;
-  margin-bottom: 2rem;
+  padding: 1rem 0 2rem;
 }
 
 header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
 }
 
-.subtitle {
-  color: #888;
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.drop-zone {
-  border: 2px dashed #444;
-  border-radius: 12px;
-  padding: 4rem 2rem;
-  text-align: center;
+/* ============================================
+   Centered Screens
+   ============================================ */
+.center-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.center-screen h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+  letter-spacing: -0.3px;
+}
+
+/* ============================================
+   Menu Buttons
+   ============================================ */
+.menu-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 2.5rem;
+  background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.menu-btn {
+  width: 320px;
+  padding: 1rem 1.5rem;
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
 }
 
-.drop-zone:hover {
-  border-color: #666;
-  background: rgba(255, 255, 255, 0.02);
+.menu-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
-.drop-zone.drag-over {
-  border-color: #4a9eff;
-  background: rgba(74, 158, 255, 0.1);
+.menu-btn:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
 }
 
-.drop-zone p {
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
+.menu-btn:hover::before {
+  opacity: 0.1;
 }
 
-.drop-zone .hint {
+.menu-btn:active {
+  transform: translateY(0);
+}
+
+/* Exit Button */
+.exit-btn {
+  margin-top: 1.5rem;
+  background: transparent;
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.exit-btn:hover {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+}
+
+.exit-btn::before {
+  display: none;
+}
+
+/* Back Button */
+.back-btn {
+  margin-top: 1.5rem;
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.back-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+.back-btn::before {
+  display: none;
+}
+
+/* ============================================
+   Corner Icons (Settings & GitHub)
+   ============================================ */
+.corner-icons {
+  position: fixed;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all var(--transition-normal);
+  color: var(--text-secondary);
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ============================================
+   Upload Box
+   ============================================ */
+.upload-box {
+  width: 100%;
+  max-width: 480px;
+  height: 200px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  margin: 1.5rem 0;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.upload-box:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  box-shadow: 0 0 40px var(--accent-glow);
+}
+
+.upload-box.drag-over {
+  border-color: var(--accent-secondary);
+  background: var(--bg-tertiary);
+  transform: scale(1.02);
+}
+
+#movie-upload-status {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* ============================================
+   Torrent List
+   ============================================ */
+.torrent-list-container {
+  width: 100%;
+  max-width: 520px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin: 1.5rem 0;
+}
+
+.torrent-list-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.torrent-list-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.torrent-list-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.torrent-list-container::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+.torrent-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.torrent-list-item:last-child {
+  border-bottom: none;
+}
+
+.torrent-list-item:hover {
+  background: var(--bg-hover);
+}
+
+.torrent-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.torrent-files {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.torrent-list-container .loading,
+.torrent-list-container .empty,
+.torrent-list-container .error {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.torrent-list-container .error {
+  color: var(--error);
+}
+
+/* ============================================
+   Torrent Status Box (File Tree)
+   ============================================ */
+.torrent-status-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.torrent-status-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+}
+
+#torrent-tree {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--accent-secondary);
+  margin: 0;
+  line-height: 1.6;
 }
 
+/* ============================================
+   Forms
+   ============================================ */
+#movie-details-form {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#movie-details-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+#movie-details-form input[type="text"],
+#movie-details-form textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+#movie-details-form input[type="text"]:focus,
+#movie-details-form textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+#movie-details-form input[type="text"]::placeholder,
+#movie-details-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+#movie-details-form textarea {
+  resize: vertical;
+  min-height: 80px;
+  max-height: 200px;
+}
+
+.row {
+  display: flex;
+  gap: 1rem;
+}
+
+.row label {
+  flex: 1;
+}
+
+/* Button Row */
+.button-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.button-row .back-btn,
+.button-row .main-btn {
+  flex: 1;
+  margin: 0;
+}
+
+/* Primary Action Button */
+.main-btn {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.main-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.main-btn:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   Status Bar
+   ============================================ */
 .status {
-  margin-top: 2rem;
+  margin-top: auto;
   padding: 1rem;
-  background: #252540;
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.status p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 #backend-status {
-  font-weight: bold;
+  font-weight: 600;
+  margin-left: 0.25rem;
 }
 
 #backend-status.connected {
-  color: #4ade80;
+  color: var(--success);
 }
 
 #backend-status.disconnected {
-  color: #f87171;
+  color: var(--error);
+}
+
+/* ============================================
+   Scrollbar Styling (Global)
+   ============================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ============================================
+   Selection Styling
+   ============================================ */
+::selection {
+  background: var(--accent-primary);
+  color: white;
 }

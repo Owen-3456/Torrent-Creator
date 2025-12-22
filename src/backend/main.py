@@ -137,6 +137,96 @@ def parse_and_process_file(file_req: FileRequest):
     }
 
 
+class FolderRequest(BaseModel):
+    folder_path: str
+
+
+@app.get("/torrents")
+def list_torrents():
+    """List all existing torrent folders."""
+    torrents_dir = os.path.expanduser("~/Documents/torrents")
+
+    if not os.path.exists(torrents_dir):
+        return {"torrents": []}
+
+    torrents = []
+    for name in os.listdir(torrents_dir):
+        folder_path = os.path.join(torrents_dir, name)
+        if os.path.isdir(folder_path):
+            # Count files in the folder
+            file_count = len([f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))])
+            torrents.append({
+                "name": name,
+                "path": folder_path,
+                "file_count": file_count
+            })
+
+    # Sort by name
+    torrents.sort(key=lambda x: x["name"].lower())
+
+    return {"torrents": torrents}
+
+
+@app.post("/torrent-details")
+def get_torrent_details(folder_req: FolderRequest):
+    """Get details of an existing torrent folder."""
+    folder_path = folder_req.folder_path
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder not found: {folder_path}"
+        )
+
+    # Find the video file in the folder
+    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
+    video_file = None
+    files = os.listdir(folder_path)
+
+    for f in files:
+        ext = os.path.splitext(f)[1].lower()
+        if ext in video_extensions:
+            video_file = f
+            break
+
+    if not video_file:
+        # If no video file, use the folder name
+        video_file = os.path.basename(folder_path) + ".mp4"
+
+    # Parse the filename
+    parsed = guessit(video_file)
+
+    # Convert parsed dict
+    parsed_dict = {}
+    for key, value in parsed.items():
+        if isinstance(value, (str, int, float, bool, type(None))):
+            parsed_dict[key] = value
+        elif isinstance(value, list):
+            parsed_dict[key] = [str(v) for v in value]
+        else:
+            parsed_dict[key] = str(value)
+
+    # Determine media type
+    parsed_type = parsed.get("type", "")
+    if parsed_type == "movie":
+        media_type = "movie"
+    elif "season" in parsed and "episode" not in parsed:
+        media_type = "season"
+    elif "episode" in parsed:
+        media_type = "episode"
+    else:
+        media_type = "unknown"
+
+    return {
+        "success": True,
+        "filename": video_file,
+        "parsed": parsed_dict,
+        "media_type": media_type,
+        "target_folder": folder_path,
+        "files": files
+    }
+
+
 def generate_nfo(parsed: dict, filename: str, media_type: str) -> str:
     """Generate NFO file content."""
     title = parsed.get("title", "Unknown")

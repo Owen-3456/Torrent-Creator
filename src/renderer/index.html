@@ -3,79 +3,118 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000" />
-    <title>Torrent Maker</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; img-src 'self' data:" />
+    <title>Torrent Creator</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
 
   <body>
     <div class="container">
       <header>
-        <h1>Torrent Maker</h1>
+        <h1>Torrent Creator</h1>
       </header>
       <main>
         <!-- Main Menu -->
         <div id="main-menu" class="center-screen">
-          <h2 class="menu-title">Torrent Maker</h2>
-          <button class="menu-btn" id="menu-movie">Create Movie Torrent</button>
-          <button class="menu-btn" id="menu-episode">Create Single Episode Torrent</button>
-          <button class="menu-btn" id="menu-season">Create Season Pack Torrent</button>
+          <h2 class="menu-title">Torrent Creator</h2>
+          <button class="menu-btn" id="menu-create">Create New Torrent</button>
+          <button class="menu-btn" id="menu-edit">Edit Existing Torrent</button>
           <button class="menu-btn exit-btn" id="menu-exit">Exit</button>
-          <div class="corner-icons">
-            <span id="settings-icon" title="Settings">⚙️</span>
-            <span id="github-icon" title="GitHub">🐙</span>
-          </div>
+        </div>
+
+        <!-- Select Torrent Type -->
+        <div id="select-type" class="center-screen" style="display: none">
+          <h2>Select Torrent Type</h2>
+          <button class="menu-btn" id="type-movie">Movie</button>
+          <button class="menu-btn" id="type-episode">Single Episode</button>
+          <button class="menu-btn" id="type-season">Season Pack</button>
+          <button class="menu-btn back-btn" id="type-back">Back</button>
         </div>
 
         <!-- Upload Movie -->
         <div id="upload-movie" class="center-screen" style="display: none">
-          <h2>Upload Movie</h2>
+          <h2>Select Movie File</h2>
           <div id="upload-box" class="upload-box">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
             <span>Click to select a file</span>
           </div>
           <div id="movie-upload-status"></div>
+          <button class="menu-btn back-btn" id="upload-back">Back</button>
+        </div>
+
+        <!-- Edit Existing Torrents List -->
+        <div id="torrent-list" class="center-screen" style="display: none">
+          <h2>Existing Torrents</h2>
+          <div id="torrent-list-container" class="torrent-list-container">
+            <p class="loading">Loading...</p>
+          </div>
+          <button class="menu-btn back-btn" id="list-back">Back</button>
         </div>
 
         <!-- Movie Details -->
         <div id="movie-details" class="center-screen" style="display: none">
-          <h2>New Movie</h2>
+          <h2>Movie Details</h2>
           <div class="torrent-status-box">
-            <div class="torrent-status-title">Torrent Status</div>
+            <div class="torrent-status-title">Torrent Structure</div>
             <pre id="torrent-tree">(No files yet)</pre>
           </div>
           <form id="movie-details-form">
-            <label>Movie Name<br /><input type="text" name="name" id="movie-name" /></label>
+            <label>Movie Name<input type="text" name="name" id="movie-name" placeholder="Enter movie name" /></label>
             <div class="row">
-              <label>Year<br /><input type="text" name="year" id="movie-year" /></label>
-              <label>Runtime<br /><input type="text" name="runtime" id="movie-runtime" /></label>
+              <label>Year<input type="text" name="year" id="movie-year" placeholder="2024" /></label>
+              <label>Runtime<input type="text" name="runtime" id="movie-runtime" placeholder="120 min" /></label>
             </div>
             <div class="row">
-              <label>Size<br /><input type="text" name="size" id="movie-size" /></label>
-              <label>Language<br /><input type="text" name="language" id="movie-language" /></label>
+              <label>Size<input type="text" name="size" id="movie-size" placeholder="4.5 GB" /></label>
+              <label>Language<input type="text" name="language" id="movie-language" placeholder="English" /></label>
             </div>
             <div class="row">
-              <label>Resolution<br /><input type="text" name="resolution" id="movie-resolution" /></label>
-              <label>Source<br /><input type="text" name="source" id="movie-source" /></label>
+              <label>Resolution<input type="text" name="resolution" id="movie-resolution" placeholder="1080p" /></label>
+              <label>Source<input type="text" name="source" id="movie-source" placeholder="BluRay" /></label>
             </div>
             <div class="row">
-              <label>Video Codec<br /><input type="text" name="video_codec" id="movie-video-codec" /></label>
-              <label>Audio Codec<br /><input type="text" name="audio_codec" id="movie-audio-codec" /></label>
+              <label>Video Codec<input type="text" name="video_codec" id="movie-video-codec" placeholder="x264" /></label>
+              <label>Audio Codec<input type="text" name="audio_codec" id="movie-audio-codec" placeholder="AAC" /></label>
             </div>
             <div class="row">
-              <label>Container<br /><input type="text" name="container" id="movie-container" /></label>
-              <label>Release Group<br /><input type="text" name="release_group" id="movie-release-group" /></label>
+              <label>Container<input type="text" name="container" id="movie-container" placeholder="MKV" /></label>
+              <label>Release Group<input type="text" name="release_group" id="movie-release-group" placeholder="GROUP" /></label>
             </div>
-            <label>TMDB ID<br /><input type="text" name="tmdb_id" id="movie-tmdb-id" /></label>
-            <label>IMDB ID<br /><input type="text" name="imdb_id" id="movie-imdb-id" /></label>
-            <label>Overview / Description<br /><textarea name="overview" id="movie-overview" rows="3"></textarea></label>
-            <button type="submit" class="main-btn">Apply Edits</button>
+            <label>TMDB ID<input type="text" name="tmdb_id" id="movie-tmdb-id" placeholder="12345" /></label>
+            <label>IMDB ID<input type="text" name="imdb_id" id="movie-imdb-id" placeholder="tt1234567" /></label>
+            <label>Overview / Description<textarea name="overview" id="movie-overview" rows="3" placeholder="Enter movie description..."></textarea></label>
+            <div class="button-row">
+              <button type="button" class="menu-btn back-btn" id="details-back">Back</button>
+              <button type="submit" class="main-btn">Save Changes</button>
+            </div>
           </form>
         </div>
 
         <div id="status" class="status">
-          <p>Backend status: <span id="backend-status">Checking...</span></p>
+          <p>Backend: <span id="backend-status">Checking...</span></p>
         </div>
       </main>
+    </div>
+
+    <!-- Corner Icons -->
+    <div class="corner-icons">
+      <button class="icon-btn" id="settings-icon" title="Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="github-icon" title="View on GitHub">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        </svg>
+      </button>
     </div>
 
     <script src="renderer.js"></script>

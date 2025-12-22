@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("api", {
   // Open native file dialog and return the selected file path
   selectFile: () => ipcRenderer.invoke("select-file"),
 
+  // Open external URL in default browser
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
+
   // Make API calls to the Python backend
   fetch: async (endpoint, options = {}) => {
     const url = `${BACKEND_URL}${endpoint}`;
