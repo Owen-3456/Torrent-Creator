@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -36,6 +36,23 @@ function createWindow() {
   // Open DevTools in development (remove for production)
   mainWindow.webContents.openDevTools();
 }
+
+// Handle file selection dialog
+ipcMain.handle("select-file", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [
+      { name: "Video Files", extensions: ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
 
 app.whenReady().then(() => {
   startBackend();

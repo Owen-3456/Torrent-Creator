@@ -5,27 +5,21 @@ import shutil
 from guessit import guessit
 import os
 import json
+from typing import Optional
 
-# Config and ASCII art file locations
+# Config file location
 CONFIG_PATH = os.path.expanduser("~/.torrent-creator/config.json")
-ASCII_ART_PATH = os.path.expanduser("~/.torrent-creator/custom-ascii-art.txt")
 
 
-def load_config():
+def load_config() -> dict:
+    """Load configuration from file."""
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
     return {}
 
 
-def load_ascii_art():
-    if os.path.exists(ASCII_ART_PATH):
-        with open(ASCII_ART_PATH, "r") as f:
-            return f.read()
-    return ""
-
-
-app = FastAPI(title="Torrent Maker Backend")
+app = FastAPI(title="Torrent Creator Backend")
 
 # Allow Electron to connect
 app.add_middleware(
@@ -37,98 +31,149 @@ app.add_middleware(
 )
 
 
+# Request/Response Models
 class FileRequest(BaseModel):
     filepath: str
 
 
 class ParseResponse(BaseModel):
+    success: bool
     filename: str
     parsed: dict
-    media_type: str  # 'movie', 'episode', 'season'
-    folder: str
+    media_type: str
+    target_folder: str
     nfo_path: str
+    error: Optional[str] = None
 
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint."""
     return {"status": "ok"}
 
 
-@app.post("/parse", response_model=ParseResponse)
-def parse_filename(file_req: FileRequest):
-    """Parse a media filename, move it, and create NFO"""
+@app.post("/parse")
+def parse_and_process_file(file_req: FileRequest):
+    """
+    Parse a media filename, create folder structure, move file, and create NFO.
+
+    Expected result structure:
+    ~/Documents/torrents/[filename-without-ext]/
+        ├── [original-filename]
+        └── [filename-without-ext].NFO
+    """
     filepath = file_req.filepath
 
-    # Validate and expand the filepath
-    filepath = os.path.expanduser(filepath)
+    # Expand user path if needed
+    if filepath.startswith("~"):
+        filepath = os.path.expanduser(filepath)
 
+    # Check if file exists
     if not os.path.isfile(filepath):
         raise HTTPException(
             status_code=400,
-            detail=f"File does not exist: {filepath}"
+            detail=f"File not found: {filepath}"
         )
 
+    # Get filename and base name (without extension)
     filename = os.path.basename(filepath)
+    base_name = os.path.splitext(filename)[0]
+
+    # Parse filename with guessit
     parsed = guessit(filename)
 
     # Determine media type
-    if parsed.get('type') == 'movie':
-        media_type = 'movie'
-    elif 'season' in parsed and 'episode' not in parsed:
-        media_type = 'season'
+    parsed_type = parsed.get("type", "")
+    if parsed_type == "movie":
+        media_type = "movie"
+    elif "season" in parsed and "episode" not in parsed:
+        media_type = "season"
+    elif "episode" in parsed:
+        media_type = "episode"
     else:
-        media_type = 'episode'
+        media_type = "unknown"
 
-    # Target folder: ~/Documents/torrents/[filename without extension]
-    base_name = os.path.splitext(filename)[0]
-    torrents_dir = os.path.expanduser('~/Documents/torrents')
-    target_dir = os.path.join(torrents_dir, base_name)
+    # Create target directory structure
+    torrents_dir = os.path.expanduser("~/Documents/torrents")
+    target_folder = os.path.join(torrents_dir, base_name)
 
-    # Create the torrents directory and target folder
-    try:
-        os.makedirs(target_dir, exist_ok=True)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create directory {target_dir}: {e}"
-        )
+    # Create directories
+    os.makedirs(target_folder, exist_ok=True)
 
-    # Move the file to target directory
-    target_file = os.path.join(target_dir, filename)
+    # Target file path
+    target_file = os.path.join(target_folder, filename)
 
-    # Only move if source and destination are different
+    # Move the file (only if not already there)
     if os.path.abspath(filepath) != os.path.abspath(target_file):
-        try:
-            shutil.move(filepath, target_file)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to move file from {filepath} to {target_file}: {e}"
-            )
+        # If target already exists, remove it first
+        if os.path.exists(target_file):
+            os.remove(target_file)
+        shutil.move(filepath, target_file)
 
-    # Create NFO file using base_name (filename without extension)
-    nfo_path = os.path.join(target_dir, f"{base_name}.NFO")
-    nfo_content = f"Title: {parsed.get('title', base_name)}\nYear: {parsed.get('year', '')}\nType: {media_type}\nFilename: {filename}\n"
+    # Create NFO file
+    nfo_path = os.path.join(target_folder, f"{base_name}.NFO")
+    nfo_content = generate_nfo(parsed, filename, media_type)
 
-    try:
-        with open(nfo_path, "w") as nfo:
-            nfo.write(nfo_content)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create NFO at {nfo_path}: {e}"
-        )
+    with open(nfo_path, "w") as f:
+        f.write(nfo_content)
 
-    return ParseResponse(
-        filename=filename,
-        parsed=dict(parsed),
-        media_type=media_type,
-        folder=target_dir,
-        nfo_path=nfo_path
-    )
+    # Convert parsed dict (may contain non-serializable objects)
+    parsed_dict = {}
+    for key, value in parsed.items():
+        if isinstance(value, (str, int, float, bool, type(None))):
+            parsed_dict[key] = value
+        elif isinstance(value, list):
+            parsed_dict[key] = [str(v) for v in value]
+        else:
+            parsed_dict[key] = str(value)
+
+    return {
+        "success": True,
+        "filename": filename,
+        "parsed": parsed_dict,
+        "media_type": media_type,
+        "target_folder": target_folder,
+        "nfo_path": nfo_path
+    }
+
+
+def generate_nfo(parsed: dict, filename: str, media_type: str) -> str:
+    """Generate NFO file content."""
+    title = parsed.get("title", "Unknown")
+    year = parsed.get("year", "")
+
+    lines = [
+        "=" * 50,
+        "  RELEASE INFO",
+        "=" * 50,
+        "",
+        f"Title       : {title}",
+        f"Year        : {year}",
+        f"Type        : {media_type.capitalize()}",
+        f"Filename    : {filename}",
+    ]
+
+    # Add optional fields if present
+    if "resolution" in parsed:
+        lines.append(f"Resolution  : {parsed['resolution']}")
+    if "source" in parsed:
+        lines.append(f"Source      : {parsed['source']}")
+    if "video_codec" in parsed:
+        lines.append(f"Video Codec : {parsed['video_codec']}")
+    if "audio_codec" in parsed:
+        lines.append(f"Audio Codec : {parsed['audio_codec']}")
+    if "release_group" in parsed:
+        lines.append(f"Group       : {parsed['release_group']}")
+
+    lines.extend([
+        "",
+        "=" * 50,
+    ])
+
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
     import uvicorn
+    print("Starting Torrent Creator Backend on http://127.0.0.1:8000")
     uvicorn.run(app, host="127.0.0.1", port=8000)

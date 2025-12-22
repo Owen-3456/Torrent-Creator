@@ -1,16 +1,15 @@
-// DOM Elements for new UI
+// ============================================
+// DOM Elements
+// ============================================
 const backendStatus = document.getElementById("backend-status");
 const mainMenu = document.getElementById("main-menu");
 const menuMovie = document.getElementById("menu-movie");
 const menuEpisode = document.getElementById("menu-episode");
 const menuSeason = document.getElementById("menu-season");
 const menuExit = document.getElementById("menu-exit");
-const settingsIcon = document.getElementById("settings-icon");
-const githubIcon = document.getElementById("github-icon");
 
 const uploadMovie = document.getElementById("upload-movie");
 const uploadBox = document.getElementById("upload-box");
-const movieFileInput = document.getElementById("movie-file-input");
 const movieUploadStatus = document.getElementById("movie-upload-status");
 
 const movieDetails = document.getElementById("movie-details");
@@ -31,92 +30,130 @@ const movieTmdbId = document.getElementById("movie-tmdb-id");
 const movieImdbId = document.getElementById("movie-imdb-id");
 const movieOverview = document.getElementById("movie-overview");
 
+// ============================================
+// Screen Navigation
+// ============================================
 function showScreen(screen) {
-  // Hide all screens
   mainMenu.style.display = "none";
   uploadMovie.style.display = "none";
   movieDetails.style.display = "none";
+
   if (screen === "menu") {
     mainMenu.style.display = "flex";
   } else if (screen === "upload") {
     uploadMovie.style.display = "flex";
+    resetUploadStatus();
   } else if (screen === "details") {
     movieDetails.style.display = "flex";
   }
 }
 
-// Menu navigation
+function resetUploadStatus() {
+  movieUploadStatus.textContent = "";
+  movieUploadStatus.style.color = "";
+}
+
+// ============================================
+// Menu Event Handlers
+// ============================================
 menuMovie.addEventListener("click", () => {
   showScreen("upload");
 });
+
 menuEpisode.addEventListener("click", () => {
   alert("Single episode torrent creation is not yet implemented.");
 });
+
 menuSeason.addEventListener("click", () => {
   alert("Season pack torrent creation is not yet implemented.");
 });
+
 menuExit.addEventListener("click", () => {
   window.close();
 });
 
-uploadBox.addEventListener("click", () => {
-  movieFileInput.click();
-});
+// ============================================
+// File Upload Handling
+// ============================================
+uploadBox.addEventListener("click", async () => {
+  // Use native Electron file dialog
+  const filepath = await window.api.selectFile();
 
-movieFileInput.addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  movieUploadStatus.textContent = "Processing file...";
-  console.log("Selected file:", file.path);
-
-  try {
-    // Only send filepath as required by backend
-    const resp = await window.api.fetch("/parse", {
-      method: "POST",
-      body: JSON.stringify({ filepath: file.path }),
-    });
-
-    console.log("Backend response:", resp);
-
-    if (resp && resp.filename) {
-      movieUploadStatus.textContent = "File processed successfully!";
-      showMovieDetails(resp, file);
-    } else {
-      movieUploadStatus.textContent = "Failed to process file - no response data.";
-      console.error("Invalid response:", resp);
-    }
-  } catch (err) {
-    movieUploadStatus.textContent = "Error: " + err.message;
-    console.error("Upload error:", err);
+  if (filepath) {
+    handleFileUpload(filepath);
   }
 });
 
-function showMovieDetails(data, file) {
-  showScreen("details");
-  // Example tree, replace with real output if available
-  const base = file.name.replace(/\.[^.]+$/, "");
-  torrentTree.textContent = `.` + `\n└── ${base}/` + `\n    ├── ${file.name}` + `\n    └── ${base}.NFO`;
-  // Fill form fields with backend or fallback values
-  const p = data.parsed || {};
-  movieName.value = p.title || guessTitleFromFilename(file.name);
-  movieYear.value = p.year || "";
-  movieRuntime.value = p.runtime || "";
-  movieSize.value = formatSize(file.size);
-  movieLanguage.value = p.language || "";
-  movieResolution.value = p.resolution || "";
-  movieSource.value = p.source || "";
-  movieVideoCodec.value = p.video_codec || p.codec || "";
-  movieAudioCodec.value = p.audio_codec || "";
-  movieContainer.value = p.container || "";
-  movieReleaseGroup.value = p.group || "";
-  movieTmdbId.value = p.tmdb_id || "";
-  movieImdbId.value = p.imdb_id || "";
-  movieOverview.value = p.overview || "";
+async function handleFileUpload(filepath) {
+  // Show processing status
+  movieUploadStatus.textContent = "Processing file...";
+  movieUploadStatus.style.color = "#4a9eff";
+
+  try {
+    // Send to backend
+    const response = await window.api.fetch("/parse", {
+      method: "POST",
+      body: JSON.stringify({ filepath: filepath }),
+    });
+
+    if (response.success) {
+      movieUploadStatus.textContent = "File processed successfully!";
+      movieUploadStatus.style.color = "#4ade80";
+
+      // Show the details screen with the response data
+      showMovieDetails(response);
+    } else {
+      showError(response.error || "Failed to process file.");
+    }
+  } catch (error) {
+    showError(error.message || "An error occurred while processing the file.");
+  }
 }
 
-movieDetailsForm.onsubmit = (e) => {
+function showError(message) {
+  movieUploadStatus.textContent = "Error: " + message;
+  movieUploadStatus.style.color = "#f87171";
+}
+
+// ============================================
+// Movie Details Display
+// ============================================
+function showMovieDetails(data) {
+  showScreen("details");
+
+  // Build the torrent tree display from backend response
+  const filename = data.filename;
+  const baseName = filename.replace(/\.[^.]+$/, "");
+
+  torrentTree.textContent = [
+    ".",
+    `└── ${baseName}/`,
+    `    ├── ${filename}`,
+    `    └── ${baseName}.NFO`,
+  ].join("\n");
+
+  // Fill form fields with parsed data
+  const parsed = data.parsed || {};
+
+  movieName.value = parsed.title || baseName;
+  movieYear.value = parsed.year || "";
+  movieRuntime.value = "";
+  movieSize.value = "";
+  movieLanguage.value = parsed.language || "";
+  movieResolution.value = parsed.resolution || "";
+  movieSource.value = parsed.source || "";
+  movieVideoCodec.value = parsed.video_codec || "";
+  movieAudioCodec.value = parsed.audio_codec || "";
+  movieContainer.value = parsed.container || "";
+  movieReleaseGroup.value = parsed.release_group || "";
+  movieTmdbId.value = "";
+  movieImdbId.value = "";
+  movieOverview.value = "";
+}
+
+movieDetailsForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  // Gather all form data
+
   const formData = {
     name: movieName.value,
     year: movieYear.value,
@@ -133,16 +170,23 @@ movieDetailsForm.onsubmit = (e) => {
     imdb_id: movieImdbId.value,
     overview: movieOverview.value,
   };
-  alert("Apply Edits: " + JSON.stringify(formData, null, 2));
-};
 
-// Check backend connection
-async function checkBackend() {
+  console.log("Form data:", formData);
+  alert("Changes saved! (Backend update not yet implemented)");
+});
+
+// ============================================
+// Backend Connection Check
+// ============================================
+async function checkBackendConnection() {
   try {
     const data = await window.api.fetch("/health");
     if (data.status === "ok") {
       backendStatus.textContent = "Connected";
       backendStatus.className = "connected";
+    } else {
+      backendStatus.textContent = "Error";
+      backendStatus.className = "disconnected";
     }
   } catch (error) {
     backendStatus.textContent = "Not running";
@@ -150,23 +194,9 @@ async function checkBackend() {
   }
 }
 
-function guessTitleFromFilename(filename) {
-  // Remove extension and common separators, numbers
-  return filename
-    .replace(/\.[^.]+$/, "")
-    .replace(/[._-]/g, " ")
-    .replace(/\d{4}/, "")
-    .trim();
-}
-
-function formatSize(bytes) {
-  if (!bytes) return "";
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(2) + " " + sizes[i];
-}
-
-// Initial backend check
-checkBackend();
-setInterval(checkBackend, 5000);
+// ============================================
+// Initialize
+// ============================================
 showScreen("menu");
+checkBackendConnection();
+setInterval(checkBackendConnection, 5000);

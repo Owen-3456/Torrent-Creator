@@ -1,26 +1,38 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
+
+const BACKEND_URL = "http://127.0.0.1:8000";
 
 // Expose a safe API to the renderer process
 contextBridge.exposeInMainWorld("api", {
-  // Backend URL
-  backendUrl: "http://127.0.0.1:8000",
+  backendUrl: BACKEND_URL,
 
-  // Helper to make API calls
+  // Open native file dialog and return the selected file path
+  selectFile: () => ipcRenderer.invoke("select-file"),
+
+  // Make API calls to the Python backend
   fetch: async (endpoint, options = {}) => {
-    const response = await fetch(`http://127.0.0.1:8000${endpoint}`, {
-      ...options,
+    const url = `${BACKEND_URL}${endpoint}`;
+
+    const fetchOptions = {
+      method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
-    });
+    };
 
-    // Check if response is OK (status 200-299)
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+    if (options.body) {
+      fetchOptions.body = options.body;
     }
 
-    return response.json();
+    const response = await fetch(url, fetchOptions);
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = data.detail || `Request failed with status ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    return data;
   },
 });
