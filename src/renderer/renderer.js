@@ -56,6 +56,12 @@ const settingAsciiArt = document.getElementById("setting-ascii-art");
 const tmdbLink = document.getElementById("tmdb-link");
 const tvdbLink = document.getElementById("tvdb-link");
 
+// Tracker settings elements
+const trackerList = document.getElementById("tracker-list");
+const trackerNewInput = document.getElementById("tracker-new-input");
+const trackerAddBtn = document.getElementById("tracker-add-btn");
+let settingTrackers = [];
+
 // Template previews
 const previewMovie = document.getElementById("preview-movie");
 const previewEpisode = document.getElementById("preview-episode");
@@ -682,6 +688,10 @@ async function loadSettings() {
       settingNfoNotesText.value = nfoConfig.notes_template || "";
       settingAsciiArt.value = originalAsciiArt || "";
 
+      // Populate Trackers tab
+      settingTrackers = [...(originalConfig.trackers || [])];
+      renderTrackerList();
+
       // Update template previews
       updateTemplatePreviews();
     }
@@ -733,6 +743,62 @@ settingTemplateEpisode.addEventListener("input", updateTemplatePreviews);
 settingTemplateSeason.addEventListener("input", updateTemplatePreviews);
 settingReleaseGroup.addEventListener("input", updateTemplatePreviews);
 
+// ============================================
+// Tracker List Management
+// ============================================
+function renderTrackerList() {
+  trackerList.innerHTML = "";
+
+  if (settingTrackers.length === 0) {
+    trackerList.innerHTML = '<div class="tracker-empty">No trackers added yet.</div>';
+    return;
+  }
+
+  settingTrackers.forEach((url, index) => {
+    const item = document.createElement("div");
+    item.className = "tracker-item";
+    item.innerHTML = `
+      <span class="tracker-url">${url}</span>
+      <button type="button" class="tracker-remove-btn" title="Remove tracker">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    `;
+
+    item.querySelector(".tracker-remove-btn").addEventListener("click", () => {
+      settingTrackers.splice(index, 1);
+      renderTrackerList();
+    });
+
+    trackerList.appendChild(item);
+  });
+}
+
+function addTracker() {
+  const url = trackerNewInput.value.trim();
+  if (!url) return;
+
+  // Avoid duplicates
+  if (settingTrackers.includes(url)) {
+    trackerNewInput.value = "";
+    return;
+  }
+
+  settingTrackers.push(url);
+  trackerNewInput.value = "";
+  renderTrackerList();
+}
+
+trackerAddBtn.addEventListener("click", addTracker);
+trackerNewInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addTracker();
+  }
+});
+
 // Save settings
 settingsSave.addEventListener("click", async () => {
   const config = {
@@ -745,7 +811,7 @@ settingsSave.addEventListener("click", async () => {
       episode: settingTemplateEpisode.value,
       season: settingTemplateSeason.value,
     },
-    trackers: originalConfig?.trackers || [],
+    trackers: [...settingTrackers],
     output_directory: settingOutputDir.value,
     release_group: settingReleaseGroup.value,
     nfo: {

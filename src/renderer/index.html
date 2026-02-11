@@ -147,6 +147,7 @@
           <div class="settings-tabs">
             <button class="tab-btn active" data-tab="api-keys">API Keys</button>
             <button class="tab-btn" data-tab="naming">Naming Templates</button>
+            <button class="tab-btn" data-tab="trackers">Trackers</button>
             <button class="tab-btn" data-tab="nfo">NFO Settings</button>
           </div>
 
@@ -224,6 +225,21 @@
                     <span class="preview-label">Season:</span>
                     <code id="preview-season">Show.Name.S01.1080p.WEB.x264-GROUP</code>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Trackers Tab -->
+            <div class="tab-content" id="tab-trackers">
+              <div class="settings-section">
+                <h3>Tracker Announce URLs</h3>
+                <p class="settings-description">Add the announce URLs for trackers you want included when creating torrents. One URL per entry.</p>
+
+                <div id="tracker-list" class="tracker-list"></div>
+
+                <div class="tracker-add-row">
+                  <input type="text" id="tracker-new-input" placeholder="https://tracker.example.com/announce" />
+                  <button type="button" class="search-btn" id="tracker-add-btn">Add</button>
                 </div>
               </div>
             </div>
