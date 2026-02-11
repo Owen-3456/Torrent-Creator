@@ -452,6 +452,7 @@ main {
 }
 
 #movie-details-form input[type="text"],
+#movie-details-form select,
 #movie-details-form textarea {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -465,6 +466,7 @@ main {
 }
 
 #movie-details-form input[type="text"]:focus,
+#movie-details-form select:focus,
 #movie-details-form textarea:focus {
   outline: none;
   border-color: var(--accent-primary);

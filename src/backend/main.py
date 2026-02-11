@@ -147,6 +147,27 @@ class TMDBSearchRequest(BaseModel):
     year: Optional[int] = None
 
 
+class SaveMovieRequest(BaseModel):
+    folder_path: str
+    name: str
+    year: str
+    runtime: str
+    size: str
+    language: str
+    resolution: str
+    source: str
+    video_codec: str
+    audio_codec: str
+    container: str
+    release_group: str
+    tmdb_id: str
+    imdb_id: str
+    overview: str
+    bit_depth: str
+    hdr_format: str
+    audio_channels: str
+
+
 # ============================================
 # Health Check
 # ============================================
@@ -524,6 +545,112 @@ async def tmdb_get_movie(movie_id: int):
 
 
 # ============================================
+# Save Movie (rename + NFO regeneration)
+# ============================================
+@app.post("/save-movie")
+async def save_movie(req: SaveMovieRequest):
+    """
+    Save edited movie details:
+    1. Apply naming template to generate a new base name
+    2. Rename the video file inside the folder
+    3. Rename the folder itself
+    4. Regenerate the NFO with full details
+    Returns the new folder path, filename, and tree for the UI.
+    """
+    folder_path = req.folder_path
+
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Folder not found: {folder_path}"
+        )
+
+    # Find the video file in the folder
+    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
+    video_file = None
+    video_ext = ""
+
+    for f in os.listdir(folder_path):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in video_extensions:
+            video_file = f
+            video_ext = ext
+            break
+
+    if not video_file:
+        raise HTTPException(
+            status_code=400,
+            detail="No video file found in the torrent folder."
+        )
+
+    # Build the new base name from the naming template
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "movie", "{title}.{year}.{quality}.{source}.{codec}-{group}"
+    )
+
+    details = req.model_dump()
+    new_base_name = apply_movie_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_video_name = new_base_name + video_ext
+    new_nfo_name = new_base_name + ".NFO"
+
+    # --- Step 1: Rename video file ---
+    old_video_path = os.path.join(folder_path, video_file)
+    new_video_path = os.path.join(folder_path, new_video_name)
+
+    if old_video_path != new_video_path:
+        if os.path.exists(new_video_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A file named '{new_video_name}' already exists in the folder."
+            )
+        os.rename(old_video_path, new_video_path)
+
+    # --- Step 2: Remove old NFO files and write new one ---
+    for f in os.listdir(folder_path):
+        if f.upper().endswith(".NFO"):
+            os.remove(os.path.join(folder_path, f))
+
+    nfo_content = generate_nfo_from_details(details, new_video_name)
+    nfo_path = os.path.join(folder_path, new_nfo_name)
+    with open(nfo_path, "w", encoding="utf-8") as fh:
+        fh.write(nfo_content)
+
+    # --- Step 3: Rename the folder ---
+    parent_dir = os.path.dirname(folder_path)
+    new_folder_path = os.path.join(parent_dir, new_base_name)
+
+    if folder_path != new_folder_path:
+        if os.path.exists(new_folder_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A folder named '{new_base_name}' already exists."
+            )
+        os.rename(folder_path, new_folder_path)
+
+    # Build the output directory display path (unexpanded for display)
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+
+    return {
+        "success": True,
+        "new_folder_path": new_folder_path,
+        "new_filename": new_video_name,
+        "new_base_name": new_base_name,
+        "output_dir": output_dir
+    }
+
+
+# ============================================
 # File Metadata Extraction
 # ============================================
 def get_file_metadata(filepath: str) -> dict:
@@ -576,25 +703,36 @@ def get_file_metadata(filepath: str) -> dict:
                     audio_stream = stream
 
             if video_stream:
-                # Resolution
-                width = video_stream.get("width")
-                height = video_stream.get("height")
+                # Resolution — use coded dimensions as fallback since some
+                # containers report cropped height (e.g. letterboxed 1080p
+                # content with height < 1080).  Checking width disambiguates
+                # these cases: a true 1080p encode has width >= 1920 even when
+                # the stored height is reduced by letterboxing.
+                width = video_stream.get("coded_width") or video_stream.get("width")
+                height = video_stream.get("coded_height") or video_stream.get("height")
                 if width and height:
-                    # Determine common resolution names
-                    if height >= 2160:
+                    # Use the larger of width- and height-derived resolution so
+                    # that letterboxed or pillarboxed content is classified by
+                    # its actual encode tier rather than the visible rectangle.
+                    res_by_height = height
+                    res_by_width = round(width * 9 / 16)  # assume 16:9 reference
+
+                    effective = max(res_by_height, res_by_width)
+
+                    if effective >= 2160:
                         metadata["resolution"] = "2160p"
-                    elif height >= 1440:
+                    elif effective >= 1440:
                         metadata["resolution"] = "1440p"
-                    elif height >= 1080:
+                    elif effective >= 1080:
                         metadata["resolution"] = "1080p"
-                    elif height >= 720:
+                    elif effective >= 720:
                         metadata["resolution"] = "720p"
-                    elif height >= 576:
+                    elif effective >= 576:
                         metadata["resolution"] = "576p"
-                    elif height >= 480:
+                    elif effective >= 480:
                         metadata["resolution"] = "480p"
                     else:
-                        metadata["resolution"] = f"{height}p"
+                        metadata["resolution"] = f"{effective}p"
 
                 # Video codec
                 codec_name = video_stream.get("codec_name", "")
@@ -704,8 +842,101 @@ def serialize_parsed(parsed: dict) -> dict:
     return parsed_dict
 
 
+def apply_movie_template(template: str, details: dict) -> str:
+    """Apply the movie naming template with the given details.
+
+    Replaces placeholders like {title}, {year}, etc. with actual values.
+    Dots in the title are preserved (spaces are converted to dots).
+    """
+    title = details.get("name", "Unknown").replace(" ", ".")
+    year = details.get("year", "")
+    quality = details.get("resolution", "")
+    source = details.get("source", "")
+    # Map display codec names to template-friendly names
+    codec = details.get("video_codec", "")
+    group = details.get("release_group", "")
+
+    result = template
+    result = result.replace("{title}", title)
+    result = result.replace("{year}", year)
+    result = result.replace("{quality}", quality)
+    result = result.replace("{source}", source)
+    result = result.replace("{codec}", codec)
+    result = result.replace("{group}", group)
+
+    # Remove any unreplaced template variables (from empty fields)
+    # e.g. ".." from empty year → single dot
+    while ".." in result:
+        result = result.replace("..", ".")
+    # Remove trailing dots before the group separator
+    result = result.replace(".-", "-")
+    # Remove leading/trailing dots
+    result = result.strip(".")
+
+    return result
+
+
+def generate_nfo_from_details(details: dict, filename: str) -> str:
+    """Generate NFO file content from saved movie details."""
+    config = load_config()
+    ascii_art = load_ascii_art()
+    nfo_config = config.get("nfo", {})
+
+    lines = [ascii_art, ""]
+
+    lines.extend([
+        f"Title       : {details.get('name', 'Unknown')}",
+        f"Year        : {details.get('year', '')}",
+        f"Type        : Movie",
+        f"Filename    : {filename}",
+    ])
+
+    if details.get("resolution"):
+        lines.append(f"Resolution  : {details['resolution']}")
+    if details.get("source"):
+        lines.append(f"Source      : {details['source']}")
+    if details.get("video_codec"):
+        lines.append(f"Video Codec : {details['video_codec']}")
+    if details.get("audio_codec"):
+        lines.append(f"Audio Codec : {details['audio_codec']}")
+    if details.get("audio_channels"):
+        lines.append(f"Audio       : {details['audio_channels']}")
+    if details.get("bit_depth"):
+        lines.append(f"Bit Depth   : {details['bit_depth']}")
+    if details.get("hdr_format"):
+        lines.append(f"HDR Format  : {details['hdr_format']}")
+    if details.get("language"):
+        lines.append(f"Language    : {details['language']}")
+    if details.get("size"):
+        lines.append(f"File Size   : {details['size']}")
+    if details.get("runtime"):
+        lines.append(f"Runtime     : {details['runtime']}")
+    if details.get("release_group"):
+        lines.append(f"Group       : {details['release_group']}")
+    if details.get("imdb_id"):
+        lines.append(f"IMDb        : https://www.imdb.com/title/{details['imdb_id']}/")
+    if details.get("tmdb_id"):
+        lines.append(f"TMDB        : https://www.themoviedb.org/movie/{details['tmdb_id']}")
+
+    if details.get("overview"):
+        lines.append("")
+        lines.append("Plot:")
+        lines.append(details["overview"])
+
+    lines.append("")
+    lines.append("=" * 50)
+
+    if nfo_config.get("include_notes", True):
+        notes = nfo_config.get("notes_template", "Enjoy and seed!")
+        if notes:
+            lines.append("")
+            lines.append(notes)
+
+    return "\n".join(lines)
+
+
 def generate_nfo(parsed: dict, filename: str, media_type: str) -> str:
-    """Generate NFO file content."""
+    """Generate NFO file content from guessit parsed data (used during initial parse)."""
     config = load_config()
     ascii_art = load_ascii_art()
     nfo_config = config.get("nfo", {})

@@ -91,7 +91,21 @@
             </div>
             <div class="row">
               <label>Resolution<input type="text" name="resolution" id="movie-resolution" placeholder="1080p" /></label>
-              <label>Source<input type="text" name="source" id="movie-source" placeholder="BluRay" /></label>
+              <label>Source
+                <select name="source" id="movie-source">
+                  <option value="">— Select —</option>
+                  <option value="BluRay">BluRay</option>
+                  <option value="Remux">Remux</option>
+                  <option value="WEB-DL">WEB-DL</option>
+                  <option value="WEBRip">WEBRip</option>
+                  <option value="HDTV">HDTV</option>
+                  <option value="HDTVRip">HDTVRip</option>
+                  <option value="BDRip">BDRip</option>
+                  <option value="DVDRip">DVDRip</option>
+                  <option value="DVD">DVD</option>
+                  <option value="CAM">CAM</option>
+                </select>
+              </label>
             </div>
             <div class="row">
               <label>Video Codec<input type="text" name="video_codec" id="movie-video-codec" placeholder="x264" /></label>

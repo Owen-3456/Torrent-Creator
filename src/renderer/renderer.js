@@ -91,6 +91,7 @@ const tmdbSearchResults = document.getElementById("tmdb-search-results");
 // Track current torrent being edited
 let currentTorrentFolder = null;
 let cachedOutputDir = "~/Documents/torrents";
+let cachedReleaseGroup = "GROUP";
 
 // ============================================
 // Screen Navigation
@@ -340,7 +341,7 @@ function showMovieDetails(data) {
   movieVideoCodec.value = metadata.video_codec || parsed.video_codec || "";
   movieAudioCodec.value = metadata.audio_codec || parsed.audio_codec || "";
   movieContainer.value = parsed.container || "";
-  movieReleaseGroup.value = parsed.release_group || "";
+  movieReleaseGroup.value = parsed.release_group || cachedReleaseGroup;
   movieBitDepth.value = metadata.bit_depth || "";
   movieHdrFormat.value = metadata.hdr_format || "";
   movieAudioChannels.value = metadata.audio_channels || "";
@@ -358,10 +359,11 @@ function showMovieDetails(data) {
   }
 }
 
-movieDetailsForm.addEventListener("submit", (e) => {
+movieDetailsForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const formData = {
+    folder_path: currentTorrentFolder,
     name: movieName.value,
     year: movieYear.value,
     runtime: movieRuntime.value,
@@ -376,10 +378,54 @@ movieDetailsForm.addEventListener("submit", (e) => {
     tmdb_id: movieTmdbId.value,
     imdb_id: movieImdbId.value,
     overview: movieOverview.value,
+    bit_depth: movieBitDepth.value,
+    hdr_format: movieHdrFormat.value,
+    audio_channels: movieAudioChannels.value,
   };
 
-  // TODO: Implement backend save endpoint
-  alert("Changes saved! (Backend update not yet implemented)");
+  // Disable the save button while saving
+  const saveBtn = movieDetailsForm.querySelector('button[type="submit"]');
+  const originalText = saveBtn.textContent;
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
+
+  try {
+    const response = await window.api.fetch("/save-movie", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    if (response.success) {
+      // Update the tracked folder path (it may have been renamed)
+      currentTorrentFolder = response.new_folder_path;
+
+      // Update the torrent tree display
+      const baseName = response.new_base_name;
+      const outputDir = response.output_dir || cachedOutputDir;
+      torrentTree.textContent = [
+        `${outputDir}/`,
+        `└── ${baseName}/`,
+        `    ├── ${response.new_filename}`,
+        `    └── ${baseName}.NFO`,
+      ].join("\n");
+
+      saveBtn.textContent = "Saved!";
+      saveBtn.style.background = "var(--success)";
+      setTimeout(() => {
+        saveBtn.textContent = originalText;
+        saveBtn.style.background = "";
+        saveBtn.disabled = false;
+      }, 2000);
+    } else {
+      alert("Failed to save: " + (response.detail || "Unknown error"));
+      saveBtn.textContent = originalText;
+      saveBtn.disabled = false;
+    }
+  } catch (error) {
+    alert("Error saving changes: " + error.message);
+    saveBtn.textContent = originalText;
+    saveBtn.disabled = false;
+  }
 });
 
 // ============================================
@@ -622,6 +668,7 @@ async function loadSettings() {
       settingReleaseGroup.value = originalConfig.release_group || "";
       settingOutputDir.value = originalConfig.output_directory || "";
       cachedOutputDir = originalConfig.output_directory || "~/Documents/torrents";
+      cachedReleaseGroup = originalConfig.release_group || "GROUP";
 
       // Populate Naming Templates tab
       const templates = originalConfig.naming_templates || {};
@@ -739,12 +786,17 @@ showScreen("menu");
 checkBackendConnection();
 setInterval(checkBackendConnection, 5000);
 
-// Load output directory from config on startup
+// Load config values on startup
 (async () => {
   try {
     const response = await window.api.fetch("/config");
-    if (response.success && response.config.output_directory) {
-      cachedOutputDir = response.config.output_directory;
+    if (response.success) {
+      if (response.config.output_directory) {
+        cachedOutputDir = response.config.output_directory;
+      }
+      if (response.config.release_group) {
+        cachedReleaseGroup = response.config.release_group;
+      }
     }
   } catch {
     // Backend may not be ready yet; will be loaded when settings are opened
