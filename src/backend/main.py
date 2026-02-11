@@ -115,7 +115,7 @@ init_config()
 
 app = FastAPI(title="Torrent Creator Backend")
 
-# Allow Electron to connect
+# Allow Electron to connect (file:// origins send null, so allow all for local-only use)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -145,16 +145,6 @@ class AsciiArtUpdate(BaseModel):
 class TMDBSearchRequest(BaseModel):
     query: str
     year: Optional[int] = None
-
-
-class ParseResponse(BaseModel):
-    success: bool
-    filename: str
-    parsed: dict
-    media_type: str
-    target_folder: str
-    nfo_path: str
-    error: Optional[str] = None
 
 
 # ============================================
@@ -370,15 +360,15 @@ async def delete_torrent(folder_req: FolderRequest):
     """Delete a torrent folder - moves to trash/recycle bin if available."""
     folder_path = folder_req.folder_path
 
+    # Expand path before checking
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
     if not os.path.isdir(folder_path):
         raise HTTPException(
             status_code=400,
             detail=f"Folder not found: {folder_path}"
         )
-
-    # Expand path if needed
-    if folder_path.startswith("~"):
-        folder_path = os.path.expanduser(folder_path)
 
     try:
         if HAS_TRASH:
@@ -539,14 +529,14 @@ async def tmdb_get_movie(movie_id: int):
 def get_file_metadata(filepath: str) -> dict:
     """Extract metadata from video file using ffprobe."""
     metadata = {
-        "resolution": None,
-        "video_codec": None,
-        "audio_codec": None,
-        "file_size": None,
-        "duration": None,
-        "bit_depth": None,
-        "hdr_format": None,
-        "audio_channels": None
+        "resolution": "",
+        "video_codec": "",
+        "audio_codec": "",
+        "file_size": "",
+        "duration": "",
+        "bit_depth": "",
+        "hdr_format": "",
+        "audio_channels": ""
     }
 
     # Get file size
@@ -685,7 +675,7 @@ def get_file_metadata(filepath: str) -> dict:
                     minutes = (total_seconds % 3600) // 60
                     seconds = total_seconds % 60
                     metadata["duration"] = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-                except:
+                except (ValueError, TypeError):
                     pass
 
     except FileNotFoundError:

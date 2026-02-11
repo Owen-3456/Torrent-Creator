@@ -5,11 +5,25 @@ const { spawn } = require("child_process");
 let mainWindow;
 let backendProcess;
 
+// Use python3 on non-Windows platforms, python on Windows
+const pythonCommand = process.platform === "win32" ? "python" : "python3";
+
 function startBackend() {
   // Start the backend server as a child process
-  backendProcess = spawn("python", [path.join(__dirname, "../backend/main.py")], {
+  backendProcess = spawn(pythonCommand, [path.join(__dirname, "../backend/main.py")], {
     stdio: "inherit",
     shell: false,
+  });
+
+  backendProcess.on("error", (err) => {
+    console.error(`Failed to start backend: ${err.message}`);
+  });
+
+  backendProcess.on("exit", (code) => {
+    if (code !== null && code !== 0) {
+      console.error(`Backend process exited with code ${code}`);
+    }
+    backendProcess = null;
   });
 }
 

@@ -10,13 +10,8 @@
   },
   "trackers": ["https://example.com/announce"],
   "output_directory": "~/Documents/torrents/output",
-  "remote_paths": {
-    "enabled": false,
-    "path": ""
-  },
   "release_group": "GROUP",
   "nfo": {
-    "ascii_art": "custom_ascii_or_default",
     "include_notes": true,
     "notes_template": "Enjoy and seed!"
   }

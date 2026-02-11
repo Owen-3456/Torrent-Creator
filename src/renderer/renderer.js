@@ -90,6 +90,7 @@ const tmdbSearchResults = document.getElementById("tmdb-search-results");
 
 // Track current torrent being edited
 let currentTorrentFolder = null;
+let cachedOutputDir = "~/Documents/torrents";
 
 // ============================================
 // Screen Navigation
@@ -169,7 +170,7 @@ uploadBack.addEventListener("click", () => {
 
 async function handleFileUpload(filepath) {
   movieUploadStatus.textContent = "Processing file...";
-  movieUploadStatus.style.color = "#4a9eff";
+  movieUploadStatus.style.color = "var(--accent-primary)";
 
   try {
     const response = await window.api.fetch("/parse", {
@@ -179,7 +180,7 @@ async function handleFileUpload(filepath) {
 
     if (response.success) {
       movieUploadStatus.textContent = "File processed successfully!";
-      movieUploadStatus.style.color = "#4ade80";
+      movieUploadStatus.style.color = "var(--success)";
       currentTorrentFolder = response.target_folder;
       showMovieDetails(response);
     } else {
@@ -192,7 +193,7 @@ async function handleFileUpload(filepath) {
 
 function showError(message) {
   movieUploadStatus.textContent = "Error: " + message;
-  movieUploadStatus.style.color = "#f87171";
+  movieUploadStatus.style.color = "var(--error)";
 }
 
 // ============================================
@@ -319,7 +320,7 @@ function showMovieDetails(data) {
   const baseName = filename.replace(/\.[^.]+$/, "");
 
   torrentTree.textContent = [
-    "~/Documents/torrents/",
+    `${cachedOutputDir}/`,
     `└── ${baseName}/`,
     `    ├── ${filename}`,
     `    └── ${baseName}.NFO`,
@@ -377,7 +378,7 @@ movieDetailsForm.addEventListener("submit", (e) => {
     overview: movieOverview.value,
   };
 
-  console.log("Form data:", formData);
+  // TODO: Implement backend save endpoint
   alert("Changes saved! (Backend update not yet implemented)");
 });
 
@@ -620,6 +621,7 @@ async function loadSettings() {
       settingTvdbKey.value = originalConfig.api_keys?.tvdb || "";
       settingReleaseGroup.value = originalConfig.release_group || "";
       settingOutputDir.value = originalConfig.output_directory || "";
+      cachedOutputDir = originalConfig.output_directory || "~/Documents/torrents";
 
       // Populate Naming Templates tab
       const templates = originalConfig.naming_templates || {};
@@ -659,17 +661,17 @@ function updateTemplatePreviews() {
   function applyTemplate(template) {
     if (!template) return "";
     let result = template;
-    result = result.replace("{title}", sampleData.title);
-    result = result.replace("{year}", sampleData.year);
-    result = result.replace("{quality}", sampleData.quality);
-    result = result.replace("{source}", sampleData.source);
-    result = result.replace("{codec}", sampleData.codec);
-    result = result.replace("{group}", sampleData.group);
-    result = result.replace("{season:02}", sampleData.season);
-    result = result.replace("{season}", sampleData.season);
-    result = result.replace("{episode:02}", sampleData.episode);
-    result = result.replace("{episode}", sampleData.episode);
-    result = result.replace("{episode_title}", sampleData.episode_title);
+    result = result.replaceAll("{title}", sampleData.title);
+    result = result.replaceAll("{year}", sampleData.year);
+    result = result.replaceAll("{quality}", sampleData.quality);
+    result = result.replaceAll("{source}", sampleData.source);
+    result = result.replaceAll("{codec}", sampleData.codec);
+    result = result.replaceAll("{group}", sampleData.group);
+    result = result.replaceAll("{season:02}", sampleData.season);
+    result = result.replaceAll("{season}", sampleData.season);
+    result = result.replaceAll("{episode:02}", sampleData.episode);
+    result = result.replaceAll("{episode}", sampleData.episode);
+    result = result.replaceAll("{episode_title}", sampleData.episode_title);
     return result;
   }
 
@@ -736,3 +738,15 @@ settingsSave.addEventListener("click", async () => {
 showScreen("menu");
 checkBackendConnection();
 setInterval(checkBackendConnection, 5000);
+
+// Load output directory from config on startup
+(async () => {
+  try {
+    const response = await window.api.fetch("/config");
+    if (response.success && response.config.output_directory) {
+      cachedOutputDir = response.config.output_directory;
+    }
+  } catch {
+    // Backend may not be ready yet; will be loaded when settings are opened
+  }
+})();
