@@ -99,6 +99,166 @@ let currentTorrentFolder = null;
 let cachedOutputDir = "~/Documents/torrents";
 let cachedReleaseGroup = "GROUP";
 
+// Default values for revert functionality
+let fieldDefaults = {};
+
+// List of tracked form field IDs
+const revertableFieldIds = [
+  "movie-name", "movie-year", "movie-runtime", "movie-size",
+  "movie-language", "movie-resolution", "movie-source",
+  "movie-video-codec", "movie-audio-codec", "movie-container",
+  "movie-release-group", "movie-bit-depth", "movie-hdr-format",
+  "movie-audio-channels", "movie-tmdb-id", "movie-imdb-id", "movie-overview",
+];
+
+// Guessit source -> dropdown value mapping
+const sourceNormalization = {
+  "blu-ray": "BluRay",
+  "bluray": "BluRay",
+  "bd": "BluRay",
+  "remux": "Remux",
+  "web-dl": "WEB-DL",
+  "web dl": "WEB-DL",
+  "webdl": "WEB-DL",
+  "web": "WEB-DL",
+  "webrip": "WEBRip",
+  "web-rip": "WEBRip",
+  "hdtv": "HDTV",
+  "hdtvrip": "HDTVRip",
+  "hdtv-rip": "HDTVRip",
+  "bdrip": "BDRip",
+  "bd-rip": "BDRip",
+  "brrip": "BDRip",
+  "dvdrip": "DVDRip",
+  "dvd-rip": "DVDRip",
+  "dvd": "DVD",
+  "cam": "CAM",
+  "hdcam": "CAM",
+};
+
+function normalizeSource(raw) {
+  if (!raw) return "";
+  const key = raw.toLowerCase().trim();
+  return sourceNormalization[key] || raw;
+}
+
+// IDs of select elements that support a Custom option
+const customDropdownIds = [
+  "movie-language", "movie-resolution", "movie-source",
+  "movie-video-codec", "movie-audio-codec", "movie-container",
+  "movie-bit-depth", "movie-hdr-format", "movie-audio-channels",
+];
+
+/**
+ * Sets a <select> value, handling the __custom option.
+ * If the value matches an existing option, select it.
+ * If not (and not empty), select __custom and show the custom input pre-filled.
+ */
+function setSelectValue(selectEl, value) {
+  if (!selectEl || !value) {
+    if (selectEl) selectEl.value = "";
+    hideCustomInput(selectEl);
+    return;
+  }
+  // Check if value matches an existing option (excluding __custom)
+  const options = Array.from(selectEl.options);
+  const match = options.find((o) => o.value === value && o.value !== "__custom");
+  if (match) {
+    selectEl.value = value;
+    hideCustomInput(selectEl);
+  } else {
+    // Value is not in the list — use custom
+    selectEl.value = "__custom";
+    showCustomInput(selectEl, value);
+  }
+}
+
+/**
+ * Gets the real value from a select, resolving __custom to the custom input value.
+ */
+function getSelectValue(selectEl) {
+  if (!selectEl) return "";
+  if (selectEl.value === "__custom") {
+    const wrapper = selectEl.closest(".field-input-wrapper") || selectEl.parentNode;
+    const customInput = wrapper?.querySelector(".custom-input");
+    return customInput ? customInput.value.trim() : "";
+  }
+  return selectEl.value;
+}
+
+function showCustomInput(selectEl, value) {
+  const wrapper = selectEl.closest(".field-input-wrapper") || selectEl.parentNode;
+  if (!wrapper) return;
+  let customInput = wrapper.querySelector(".custom-input");
+  if (!customInput) {
+    customInput = document.createElement("input");
+    customInput.type = "text";
+    customInput.className = "custom-input";
+    customInput.placeholder = "Enter custom value...";
+    // Insert after the select
+    selectEl.after(customInput);
+
+    // Propagate input events for revert button tracking
+    customInput.addEventListener("input", () => {
+      const id = selectEl.id;
+      if (id) updateRevertButton(id);
+    });
+  }
+  customInput.value = value || "";
+  customInput.style.display = "";
+}
+
+function hideCustomInput(selectEl) {
+  const wrapper = selectEl.closest(".field-input-wrapper") || selectEl.parentNode;
+  if (!wrapper) return;
+  const customInput = wrapper.querySelector(".custom-input");
+  if (customInput) {
+    customInput.style.display = "none";
+    customInput.value = "";
+  }
+}
+
+// ============================================
+// Input Validation (Year, Runtime, TMDB ID)
+// ============================================
+
+// Year: only digits
+function enforceNumericInput(inputEl) {
+  inputEl.addEventListener("input", () => {
+    inputEl.value = inputEl.value.replace(/[^0-9]/g, "");
+  });
+  inputEl.addEventListener("keydown", (e) => {
+    // Allow control keys
+    if (e.ctrlKey || e.metaKey || e.key.length > 1) return;
+    if (!/[0-9]/.test(e.key)) e.preventDefault();
+  });
+}
+
+// Runtime: enforce HH:MM:SS format with auto-formatting
+function enforceTimeInput(inputEl) {
+  inputEl.addEventListener("input", () => {
+    // Strip non-digits and non-colons
+    let raw = inputEl.value.replace(/[^0-9:]/g, "");
+    // Auto-insert colons: user types digits, we format as HH:MM:SS
+    const digits = raw.replace(/:/g, "");
+    if (digits.length <= 2) {
+      inputEl.value = digits;
+    } else if (digits.length <= 4) {
+      inputEl.value = digits.slice(0, 2) + ":" + digits.slice(2);
+    } else {
+      inputEl.value = digits.slice(0, 2) + ":" + digits.slice(2, 4) + ":" + digits.slice(4, 6);
+    }
+  });
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.key.length > 1) return;
+    if (!/[0-9:]/.test(e.key)) e.preventDefault();
+    // Prevent input beyond HH:MM:SS (8 chars)
+    if (inputEl.value.length >= 8 && inputEl.selectionStart === inputEl.selectionEnd && /[0-9]/.test(e.key)) {
+      e.preventDefault();
+    }
+  });
+}
+
 // ============================================
 // Screen Navigation
 // ============================================
@@ -319,6 +479,22 @@ detailsBack.addEventListener("click", () => {
   showScreen("menu");
 });
 
+function snapshotFieldDefaults() {
+  fieldDefaults = {};
+  revertableFieldIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // For custom dropdowns, store the resolved value (not "__custom")
+    if (customDropdownIds.includes(id)) {
+      fieldDefaults[id] = getSelectValue(el);
+    } else {
+      fieldDefaults[id] = el.value;
+    }
+  });
+  // After snapshotting, update all revert button visibility
+  updateAllRevertButtons();
+}
+
 function showMovieDetails(data) {
   showScreen("details");
 
@@ -341,19 +517,25 @@ function showMovieDetails(data) {
   movieYear.value = parsed.year || "";
   movieRuntime.value = metadata.duration || "";
   movieSize.value = metadata.file_size || "";
-  movieLanguage.value = parsed.language || "";
-  movieResolution.value = metadata.resolution || parsed.resolution || "";
-  movieSource.value = parsed.source || "";
-  movieVideoCodec.value = metadata.video_codec || parsed.video_codec || "";
-  movieAudioCodec.value = metadata.audio_codec || parsed.audio_codec || "";
-  movieContainer.value = parsed.container || "";
+  setSelectValue(movieLanguage, parsed.language || "");
+  setSelectValue(movieResolution, metadata.resolution || parsed.resolution || "");
+  setSelectValue(movieSource, normalizeSource(parsed.source));
+  setSelectValue(movieVideoCodec, metadata.video_codec || parsed.video_codec || "");
+  setSelectValue(movieAudioCodec, metadata.audio_codec || parsed.audio_codec || "");
+  setSelectValue(movieContainer, (parsed.container || "").toUpperCase());
   movieReleaseGroup.value = parsed.release_group || cachedReleaseGroup;
-  movieBitDepth.value = metadata.bit_depth || "";
-  movieHdrFormat.value = metadata.hdr_format || "";
-  movieAudioChannels.value = metadata.audio_channels || "";
+  setSelectValue(movieBitDepth, metadata.bit_depth || "");
+  setSelectValue(movieHdrFormat, metadata.hdr_format || "");
+  setSelectValue(movieAudioChannels, metadata.audio_channels || "");
   movieTmdbId.value = "";
   movieImdbId.value = "";
   movieOverview.value = "";
+
+  // Inject revert buttons into form fields
+  injectRevertButtons();
+
+  // Snapshot defaults before TMDB overwrites (will be re-snapshotted after TMDB)
+  snapshotFieldDefaults();
 
   // Pre-fill TMDB search with movie name and clear previous results
   tmdbSearchInput.value = parsed.title || "";
@@ -374,19 +556,19 @@ movieDetailsForm.addEventListener("submit", async (e) => {
     year: movieYear.value,
     runtime: movieRuntime.value,
     size: movieSize.value,
-    language: movieLanguage.value,
-    resolution: movieResolution.value,
-    source: movieSource.value,
-    video_codec: movieVideoCodec.value,
-    audio_codec: movieAudioCodec.value,
-    container: movieContainer.value,
+    language: getSelectValue(movieLanguage),
+    resolution: getSelectValue(movieResolution),
+    source: getSelectValue(movieSource),
+    video_codec: getSelectValue(movieVideoCodec),
+    audio_codec: getSelectValue(movieAudioCodec),
+    container: getSelectValue(movieContainer),
     release_group: movieReleaseGroup.value,
     tmdb_id: movieTmdbId.value,
     imdb_id: movieImdbId.value,
     overview: movieOverview.value,
-    bit_depth: movieBitDepth.value,
-    hdr_format: movieHdrFormat.value,
-    audio_channels: movieAudioChannels.value,
+    bit_depth: getSelectValue(movieBitDepth),
+    hdr_format: getSelectValue(movieHdrFormat),
+    audio_channels: getSelectValue(movieAudioChannels),
   };
 
   // Disable the save button while saving
@@ -547,14 +729,15 @@ function fillMovieDetails(movie) {
   movieName.value = movie.title || "";
   movieYear.value = movie.year || "";
 
-  // Convert runtime from minutes to HH:MM:SS format
-  if (movie.runtime) {
-    const totalMinutes = movie.runtime;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    movieRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
-  } else {
-    movieRuntime.value = "";
+  // Only overwrite runtime if we don't already have a precise ffprobe value
+  const currentRuntime = movieRuntime.value.trim();
+  if (!currentRuntime) {
+    if (movie.runtime) {
+      const totalMinutes = movie.runtime;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      movieRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+    }
   }
 
   movieTmdbId.value = movie.tmdb_id || "";
@@ -563,7 +746,7 @@ function fillMovieDetails(movie) {
 
   // Set language from spoken languages or original language
   if (movie.spoken_languages && movie.spoken_languages.length > 0) {
-    movieLanguage.value = movie.spoken_languages[0];
+    setSelectValue(movieLanguage, movie.spoken_languages[0]);
   } else if (movie.original_language) {
     // Convert language code to name
     const langNames = {
@@ -578,8 +761,11 @@ function fillMovieDetails(movie) {
       ru: "Russian",
       pt: "Portuguese",
     };
-    movieLanguage.value = langNames[movie.original_language] || movie.original_language;
+    setSelectValue(movieLanguage, langNames[movie.original_language] || movie.original_language);
   }
+
+  // Re-snapshot defaults after TMDB data merges in
+  snapshotFieldDefaults();
 }
 
 // ============================================
@@ -851,6 +1037,94 @@ settingsSave.addEventListener("click", async () => {
 showScreen("menu");
 checkBackendConnection();
 setInterval(checkBackendConnection, 5000);
+
+// Wire up input validation
+enforceNumericInput(movieYear);
+enforceTimeInput(movieRuntime);
+enforceNumericInput(movieTmdbId);
+
+// ============================================
+// Revert Button System
+// ============================================
+const revertSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`;
+
+function injectRevertButtons() {
+  revertableFieldIds.forEach((id) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const label = field.closest("label");
+    if (!label || label.querySelector(".revert-btn")) return;
+
+    // Wrap the input/select/textarea in a container for positioning
+    const wrapper = document.createElement("div");
+    wrapper.className = "field-input-wrapper";
+    field.parentNode.insertBefore(wrapper, field);
+    wrapper.appendChild(field);
+
+    // Create the revert button
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "revert-btn";
+    btn.title = "Revert to default";
+    btn.innerHTML = revertSvg;
+    btn.style.display = "none";
+    wrapper.appendChild(btn);
+
+    // Click handler: restore default
+    btn.addEventListener("click", () => {
+      if (fieldDefaults[id] !== undefined) {
+        if (customDropdownIds.includes(id)) {
+          setSelectValue(field, fieldDefaults[id]);
+        } else {
+          field.value = fieldDefaults[id];
+        }
+        btn.style.display = "none";
+      }
+    });
+
+    // Listen for user changes on this field
+    const eventType = field.tagName === "SELECT" ? "change" : "input";
+    field.addEventListener(eventType, () => {
+      // For selects with custom, show/hide the custom input
+      if (field.tagName === "SELECT" && customDropdownIds.includes(id)) {
+        if (field.value === "__custom") {
+          showCustomInput(field, "");
+        } else {
+          hideCustomInput(field);
+        }
+      }
+      updateRevertButton(id);
+    });
+  });
+}
+
+function updateRevertButton(fieldId) {
+  const field = document.getElementById(fieldId);
+  if (!field) return;
+  const wrapper = field.closest(".field-input-wrapper");
+  if (!wrapper) return;
+  const btn = wrapper.querySelector(".revert-btn");
+  if (!btn) return;
+
+  const defaultVal = fieldDefaults[fieldId];
+  // Get the current effective value
+  let currentVal;
+  if (customDropdownIds.includes(fieldId)) {
+    currentVal = getSelectValue(field);
+  } else {
+    currentVal = field.value;
+  }
+
+  if (defaultVal !== undefined && currentVal !== defaultVal) {
+    btn.style.display = "flex";
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+function updateAllRevertButtons() {
+  revertableFieldIds.forEach((id) => updateRevertButton(id));
+}
 
 // Load config values on startup
 (async () => {

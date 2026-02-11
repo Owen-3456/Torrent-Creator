@@ -82,15 +82,51 @@
           <form id="movie-details-form">
             <label>Movie Name<input type="text" name="name" id="movie-name" placeholder="Enter movie name" /></label>
             <div class="row">
-              <label>Year<input type="text" name="year" id="movie-year" placeholder="2024" /></label>
-              <label>Runtime<input type="text" name="runtime" id="movie-runtime" placeholder="120 min" /></label>
+              <label>Year<input type="text" name="year" id="movie-year" placeholder="2024" inputmode="numeric" pattern="[0-9]*" /></label>
+              <label>Runtime<input type="text" name="runtime" id="movie-runtime" placeholder="HH:MM:SS" /></label>
             </div>
             <div class="row">
-              <label>Size<input type="text" name="size" id="movie-size" placeholder="4.5 GB" /></label>
-              <label>Language<input type="text" name="language" id="movie-language" placeholder="English" /></label>
+              <label>Size<input type="text" name="size" id="movie-size" placeholder="4.5 GB" readonly /></label>
+              <label>Language
+                <select name="language" id="movie-language">
+                  <option value="">— Select —</option>
+                  <option value="English">English</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Portuguese">Portuguese</option>
+                  <option value="Japanese">Japanese</option>
+                  <option value="Korean">Korean</option>
+                  <option value="Chinese">Chinese</option>
+                  <option value="Russian">Russian</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Arabic">Arabic</option>
+                  <option value="Dutch">Dutch</option>
+                  <option value="Swedish">Swedish</option>
+                  <option value="Norwegian">Norwegian</option>
+                  <option value="Danish">Danish</option>
+                  <option value="Finnish">Finnish</option>
+                  <option value="Polish">Polish</option>
+                  <option value="Turkish">Turkish</option>
+                  <option value="Thai">Thai</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
             </div>
             <div class="row">
-              <label>Resolution<input type="text" name="resolution" id="movie-resolution" placeholder="1080p" /></label>
+              <label>Resolution
+                <select name="resolution" id="movie-resolution">
+                  <option value="">— Select —</option>
+                  <option value="2160p">2160p</option>
+                  <option value="1440p">1440p</option>
+                  <option value="1080p">1080p</option>
+                  <option value="720p">720p</option>
+                  <option value="576p">576p</option>
+                  <option value="480p">480p</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
               <label>Source
                 <select name="source" id="movie-source">
                   <option value="">— Select —</option>
@@ -104,24 +140,87 @@
                   <option value="DVDRip">DVDRip</option>
                   <option value="DVD">DVD</option>
                   <option value="CAM">CAM</option>
+                  <option value="__custom">Custom...</option>
                 </select>
               </label>
             </div>
             <div class="row">
-              <label>Video Codec<input type="text" name="video_codec" id="movie-video-codec" placeholder="x264" /></label>
-              <label>Audio Codec<input type="text" name="audio_codec" id="movie-audio-codec" placeholder="AAC" /></label>
+              <label>Video Codec
+                <select name="video_codec" id="movie-video-codec">
+                  <option value="">— Select —</option>
+                  <option value="x264">x264</option>
+                  <option value="x265">x265</option>
+                  <option value="AV1">AV1</option>
+                  <option value="VP9">VP9</option>
+                  <option value="XviD">XviD</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>Audio Codec
+                <select name="audio_codec" id="movie-audio-codec">
+                  <option value="">— Select —</option>
+                  <option value="AAC">AAC</option>
+                  <option value="AC3">AC3</option>
+                  <option value="EAC3">EAC3</option>
+                  <option value="DTS">DTS</option>
+                  <option value="DTS-HD MA">DTS-HD MA</option>
+                  <option value="TrueHD">TrueHD</option>
+                  <option value="FLAC">FLAC</option>
+                  <option value="Opus">Opus</option>
+                  <option value="Vorbis">Vorbis</option>
+                  <option value="MP3">MP3</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
             </div>
             <div class="row">
-              <label>Container<input type="text" name="container" id="movie-container" placeholder="MKV" /></label>
+              <label>Container
+                <select name="container" id="movie-container">
+                  <option value="">— Select —</option>
+                  <option value="MKV">MKV</option>
+                  <option value="MP4">MP4</option>
+                  <option value="AVI">AVI</option>
+                  <option value="WebM">WebM</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
               <label>Release Group<input type="text" name="release_group" id="movie-release-group" placeholder="GROUP" /></label>
             </div>
             <div class="row">
-              <label>Bit Depth<input type="text" name="bit_depth" id="movie-bit-depth" placeholder="10-bit" /></label>
-              <label>HDR Format<input type="text" name="hdr_format" id="movie-hdr-format" placeholder="HDR10" /></label>
+              <label>Bit Depth
+                <select name="bit_depth" id="movie-bit-depth">
+                  <option value="">— Select —</option>
+                  <option value="8-bit">8-bit</option>
+                  <option value="10-bit">10-bit</option>
+                  <option value="12-bit">12-bit</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>HDR Format
+                <select name="hdr_format" id="movie-hdr-format">
+                  <option value="">— Select —</option>
+                  <option value="SDR">SDR</option>
+                  <option value="HDR">HDR</option>
+                  <option value="HDR10">HDR10</option>
+                  <option value="HDR10+">HDR10+</option>
+                  <option value="HLG">HLG</option>
+                  <option value="Dolby Vision">Dolby Vision</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
             </div>
             <div class="row">
-              <label>Audio Channels<input type="text" name="audio_channels" id="movie-audio-channels" placeholder="5.1" /></label>
-              <label>TMDB ID<input type="text" name="tmdb_id" id="movie-tmdb-id" placeholder="12345" /></label>
+              <label>Audio Channels
+                <select name="audio_channels" id="movie-audio-channels">
+                  <option value="">— Select —</option>
+                  <option value="1.0">1.0</option>
+                  <option value="2.0">2.0</option>
+                  <option value="5.1">5.1</option>
+                  <option value="7.1">7.1</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>TMDB ID<input type="text" name="tmdb_id" id="movie-tmdb-id" placeholder="12345" inputmode="numeric" pattern="[0-9]*" /></label>
             </div>
             <label>IMDB ID<input type="text" name="imdb_id" id="movie-imdb-id" placeholder="tt1234567" /></label>
             <label>Overview / Description<textarea name="overview" id="movie-overview" rows="3" placeholder="Enter movie description..."></textarea></label>
