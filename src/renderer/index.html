@@ -226,9 +226,64 @@
             <label>Overview / Description<textarea name="overview" id="movie-overview" rows="3" placeholder="Enter movie description..."></textarea></label>
             <div class="button-row">
               <button type="button" class="menu-btn back-btn" id="details-back">Back</button>
-              <button type="submit" class="main-btn">Save Changes</button>
+              <button type="submit" class="main-btn">Make Torrent</button>
             </div>
           </form>
+        </div>
+
+        <!-- Torrent Preview Screen -->
+        <div id="torrent-preview" class="preview-screen" style="display: none">
+          <div class="preview-header">
+            <h2>Torrent Preview</h2>
+            <button class="icon-btn" id="preview-close" title="Close">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="preview-content">
+            <!-- Files Preview -->
+            <div class="preview-section">
+              <h3>Files</h3>
+              <div class="preview-box">
+                <pre id="preview-file-tree">(loading...)</pre>
+              </div>
+            </div>
+
+            <!-- NFO Preview -->
+            <div class="preview-section">
+              <h3>NFO</h3>
+              <div class="preview-box nfo-preview-box">
+                <pre id="preview-nfo-content">(loading...)</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-footer">
+            <button class="menu-btn back-btn" id="preview-cancel">Cancel</button>
+            <button class="main-btn" id="preview-confirm">Create Torrent</button>
+          </div>
+        </div>
+
+        <!-- Torrent Success Screen -->
+        <div id="torrent-success" class="center-screen" style="display: none">
+          <div class="success-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <h2 class="success-title">Torrent Successfully Created</h2>
+          <p class="success-torrent-name" id="success-torrent-name"></p>
+          <button class="menu-btn success-open-btn" id="success-open-folder">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            Open Containing Folder
+          </button>
+          <button class="menu-btn back-btn" id="success-done">Back to Menu</button>
         </div>
 
         <!-- Settings Screen -->

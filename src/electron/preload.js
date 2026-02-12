@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld("api", {
   // Open external URL in default browser
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
 
+  // Show a file/folder in the system file manager
+  showItemInFolder: (fullPath) => ipcRenderer.invoke("show-item-in-folder", fullPath),
+
   // Make API calls to the Python backend
   fetch: async (endpoint, options = {}) => {
     const url = `${BACKEND_URL}${endpoint}`;

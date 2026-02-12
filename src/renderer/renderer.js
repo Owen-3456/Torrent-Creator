@@ -89,6 +89,20 @@ const movieHdrFormat = document.getElementById("movie-hdr-format");
 const movieAudioChannels = document.getElementById("movie-audio-channels");
 const detailsBack = document.getElementById("details-back");
 
+// Torrent preview screen
+const torrentPreview = document.getElementById("torrent-preview");
+const previewClose = document.getElementById("preview-close");
+const previewCancel = document.getElementById("preview-cancel");
+const previewConfirm = document.getElementById("preview-confirm");
+const previewFileTree = document.getElementById("preview-file-tree");
+const previewNfoContent = document.getElementById("preview-nfo-content");
+
+// Torrent success screen
+const torrentSuccess = document.getElementById("torrent-success");
+const successTorrentName = document.getElementById("success-torrent-name");
+const successOpenFolder = document.getElementById("success-open-folder");
+const successDone = document.getElementById("success-done");
+
 // TMDB Search elements
 const tmdbSearchInput = document.getElementById("tmdb-search-input");
 const tmdbSearchBtn = document.getElementById("tmdb-search-btn");
@@ -262,7 +276,7 @@ function enforceTimeInput(inputEl) {
 // ============================================
 // Screen Navigation
 // ============================================
-const screens = [mainMenu, selectType, uploadMovie, torrentList, movieDetails];
+const screens = [mainMenu, selectType, uploadMovie, torrentList, movieDetails, torrentSuccess];
 
 function showScreen(screen) {
   screens.forEach((s) => (s.style.display = "none"));
@@ -279,6 +293,8 @@ function showScreen(screen) {
     loadTorrentList();
   } else if (screen === "details") {
     movieDetails.style.display = "flex";
+  } else if (screen === "success") {
+    torrentSuccess.style.display = "flex";
   }
 }
 
@@ -547,10 +563,9 @@ function showMovieDetails(data) {
   }
 }
 
-movieDetailsForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const formData = {
+// Collect form data into an object (used by preview and create)
+function collectFormData() {
+  return {
     folder_path: currentTorrentFolder,
     name: movieName.value,
     year: movieYear.value,
@@ -570,50 +585,133 @@ movieDetailsForm.addEventListener("submit", async (e) => {
     hdr_format: getSelectValue(movieHdrFormat),
     audio_channels: getSelectValue(movieAudioChannels),
   };
+}
 
-  // Disable the save button while saving
-  const saveBtn = movieDetailsForm.querySelector('button[type="submit"]');
-  const originalText = saveBtn.textContent;
-  saveBtn.disabled = true;
-  saveBtn.textContent = "Saving...";
+// Store form data for the confirm step
+let pendingTorrentData = null;
+
+movieDetailsForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = collectFormData();
+  const submitBtn = movieDetailsForm.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Loading preview...";
 
   try {
-    const response = await window.api.fetch("/save-movie", {
+    const response = await window.api.fetch("/preview-torrent", {
       method: "POST",
       body: JSON.stringify(formData),
     });
 
     if (response.success) {
-      // Update the tracked folder path (it may have been renamed)
-      currentTorrentFolder = response.new_folder_path;
-
-      // Update the torrent tree display
-      const baseName = response.new_base_name;
-      const outputDir = response.output_dir || cachedOutputDir;
-      torrentTree.textContent = [
-        `${outputDir}/`,
-        `└── ${baseName}/`,
-        `    ├── ${response.new_filename}`,
-        `    └── ${baseName}.NFO`,
-      ].join("\n");
-
-      saveBtn.textContent = "Saved!";
-      saveBtn.style.background = "var(--success)";
-      setTimeout(() => {
-        saveBtn.textContent = originalText;
-        saveBtn.style.background = "";
-        saveBtn.disabled = false;
-      }, 2000);
+      pendingTorrentData = formData;
+      showTorrentPreview(response);
     } else {
-      alert("Failed to save: " + (response.detail || "Unknown error"));
-      saveBtn.textContent = originalText;
-      saveBtn.disabled = false;
+      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
     }
   } catch (error) {
-    alert("Error saving changes: " + error.message);
-    saveBtn.textContent = originalText;
-    saveBtn.disabled = false;
+    alert("Error generating preview: " + error.message);
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
   }
+});
+
+// ============================================
+// Torrent Preview Screen
+// ============================================
+function showTorrentPreview(preview) {
+  torrentPreview.style.display = "flex";
+
+  // Build the file tree
+  const baseName = preview.base_name;
+  const outputDir = preview.output_dir || cachedOutputDir;
+  const lines = [
+    `${outputDir}/`,
+    `└── ${baseName}/`,
+  ];
+  preview.files.forEach((file, i) => {
+    const connector = i < preview.files.length - 1 ? "├──" : "└──";
+    lines.push(`    ${connector} ${file.name}`);
+  });
+  lines.push("");
+  lines.push(`${outputDir}/`);
+  lines.push(`└── ${preview.torrent_name}`);
+
+  previewFileTree.textContent = lines.join("\n");
+
+  // Show the NFO content
+  previewNfoContent.textContent = preview.nfo_content;
+}
+
+function closeTorrentPreview() {
+  torrentPreview.style.display = "none";
+  pendingTorrentData = null;
+}
+
+previewClose.addEventListener("click", closeTorrentPreview);
+previewCancel.addEventListener("click", closeTorrentPreview);
+
+// Track the torrent file path for the success screen
+let lastTorrentFilePath = null;
+
+previewConfirm.addEventListener("click", async () => {
+  if (!pendingTorrentData) return;
+
+  previewConfirm.disabled = true;
+  previewConfirm.textContent = "Creating torrent...";
+
+  try {
+    const response = await window.api.fetch("/create-torrent", {
+      method: "POST",
+      body: JSON.stringify(pendingTorrentData),
+    });
+
+    if (response.success) {
+      // Store info for the success screen
+      lastTorrentFilePath = response.torrent_file;
+      const displayName = response.new_base_name.replace(/\./g, " ");
+
+      // Reset preview button state
+      previewConfirm.textContent = "Create Torrent";
+      previewConfirm.style.background = "";
+      previewConfirm.disabled = false;
+
+      // Close the preview overlay and navigate to the success screen
+      torrentPreview.style.display = "none";
+      pendingTorrentData = null;
+      showTorrentSuccess(displayName);
+    } else {
+      alert("Failed to create torrent: " + (response.detail || "Unknown error"));
+      previewConfirm.textContent = "Create Torrent";
+      previewConfirm.disabled = false;
+    }
+  } catch (error) {
+    alert("Error creating torrent: " + error.message);
+    previewConfirm.textContent = "Create Torrent";
+    previewConfirm.disabled = false;
+  }
+});
+
+// ============================================
+// Torrent Success Screen
+// ============================================
+function showTorrentSuccess(displayName) {
+  successTorrentName.textContent = displayName;
+  showScreen("success");
+}
+
+successOpenFolder.addEventListener("click", () => {
+  if (lastTorrentFilePath) {
+    window.api.showItemInFolder(lastTorrentFilePath);
+  }
+});
+
+successDone.addEventListener("click", () => {
+  lastTorrentFilePath = null;
+  showScreen("menu");
 });
 
 // ============================================

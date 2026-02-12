@@ -3,12 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import shutil
 from guessit import guessit
+from torf import Torrent
 import os
 import json
 import httpx
 import platform
 import subprocess
-from typing import Optional
+from typing import Optional, List
 
 # Try to import send2trash for safe deletion
 try:
@@ -647,6 +648,185 @@ async def save_movie(req: SaveMovieRequest):
         "new_filename": new_video_name,
         "new_base_name": new_base_name,
         "output_dir": output_dir
+    }
+
+
+# ============================================
+# Preview Torrent (dry-run: show files + NFO)
+# ============================================
+@app.post("/preview-torrent")
+async def preview_torrent(req: SaveMovieRequest):
+    """
+    Generate a preview of what the torrent will contain:
+    - The new file/folder names after applying the naming template
+    - The full NFO content
+    Does NOT write anything to disk.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    # Find current video file to know the extension
+    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
+    video_ext = ""
+    for f in os.listdir(folder_path):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in video_extensions:
+            video_ext = ext
+            break
+
+    if not video_ext:
+        raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
+
+    # Build the new base name from the naming template
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "movie", "{title}.{year}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_movie_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_video_name = new_base_name + video_ext
+    new_nfo_name = new_base_name + ".NFO"
+    new_torrent_name = new_base_name + ".torrent"
+
+    # Generate NFO content (preview only, not written to disk)
+    nfo_content = generate_nfo_from_details(details, new_video_name)
+
+    # Build file tree for preview
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+    files = [
+        {"name": new_video_name, "type": "video"},
+        {"name": new_nfo_name, "type": "nfo"},
+    ]
+
+    return {
+        "success": True,
+        "base_name": new_base_name,
+        "torrent_name": new_torrent_name,
+        "output_dir": output_dir,
+        "files": files,
+        "nfo_content": nfo_content,
+    }
+
+
+# ============================================
+# Create Torrent (.torrent file generation)
+# ============================================
+@app.post("/create-torrent")
+async def create_torrent(req: SaveMovieRequest):
+    """
+    Full torrent creation pipeline:
+    1. Rename video file + folder using the naming template
+    2. Generate and write the NFO file
+    3. Create a .torrent file from the folder contents using configured trackers
+    Returns the path to the created .torrent file.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    # Find the video file
+    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
+    video_file = None
+    video_ext = ""
+    for f in os.listdir(folder_path):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in video_extensions:
+            video_file = f
+            video_ext = ext
+            break
+
+    if not video_file:
+        raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
+
+    # Build the new base name
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "movie", "{title}.{year}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_movie_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_video_name = new_base_name + video_ext
+    new_nfo_name = new_base_name + ".NFO"
+
+    # --- Step 1: Rename video file ---
+    old_video_path = os.path.join(folder_path, video_file)
+    new_video_path = os.path.join(folder_path, new_video_name)
+
+    if old_video_path != new_video_path:
+        if os.path.exists(new_video_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A file named '{new_video_name}' already exists in the folder."
+            )
+        os.rename(old_video_path, new_video_path)
+
+    # --- Step 2: Remove old NFO files and write new one ---
+    for f in os.listdir(folder_path):
+        if f.upper().endswith(".NFO"):
+            os.remove(os.path.join(folder_path, f))
+
+    nfo_content = generate_nfo_from_details(details, new_video_name)
+    nfo_path = os.path.join(folder_path, new_nfo_name)
+    with open(nfo_path, "w", encoding="utf-8") as fh:
+        fh.write(nfo_content)
+
+    # --- Step 3: Rename the folder ---
+    parent_dir = os.path.dirname(folder_path)
+    new_folder_path = os.path.join(parent_dir, new_base_name)
+
+    if folder_path != new_folder_path:
+        if os.path.exists(new_folder_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A folder named '{new_base_name}' already exists."
+            )
+        os.rename(folder_path, new_folder_path)
+
+    # --- Step 4: Create .torrent file ---
+    trackers = config.get("trackers", [])
+
+    torrent = Torrent(
+        path=new_folder_path,
+        trackers=trackers if trackers else None,
+        comment=f"Created by Torrent Creator",
+    )
+    torrent.generate()
+
+    torrent_filename = new_base_name + ".torrent"
+    torrent_file_path = os.path.join(parent_dir, torrent_filename)
+    torrent.write(torrent_file_path, overwrite=True)
+
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+
+    return {
+        "success": True,
+        "new_folder_path": new_folder_path,
+        "new_filename": new_video_name,
+        "new_base_name": new_base_name,
+        "output_dir": output_dir,
+        "torrent_file": torrent_file_path,
+        "torrent_filename": torrent_filename,
     }
 
 

@@ -73,6 +73,11 @@ ipcMain.handle("open-external", async (_event, url) => {
   await shell.openExternal(url);
 });
 
+// Handle showing a file/folder in the system file manager
+ipcMain.handle("show-item-in-folder", async (_event, fullPath) => {
+  shell.showItemInFolder(fullPath);
+});
+
 app.whenReady().then(() => {
   startBackend();
   createWindow();
