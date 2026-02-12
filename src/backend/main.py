@@ -177,6 +177,13 @@ class TorrentRequest(BaseModel):
     audio_channels: str
 
 
+class EpisodeTorrentRequest(TorrentRequest):
+    show_name: str
+    season: int
+    episode: int
+    episode_title: str
+
+
 # ============================================
 # Health Check
 # ============================================
@@ -551,6 +558,207 @@ async def tmdb_get_movie(movie_id: int):
 
 
 # ============================================
+# TMDB TV API
+# ============================================
+@app.post("/tmdb/search-tv")
+async def tmdb_search_tv(request: TMDBSearchRequest):
+    """Search for TV shows on TMDB."""
+    config = load_config()
+    api_key = config.get("api_keys", {}).get("tmdb", "")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="TMDB API key not configured. Please add it in Settings."
+        )
+
+    params = {
+        "api_key": api_key,
+        "query": request.query,
+        "include_adult": False
+    }
+
+    if request.year:
+        params["first_air_date_year"] = request.year
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TMDB_BASE_URL}/search/tv",
+            params=params
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"TMDB API error: {response.text}"
+            )
+
+        data = response.json()
+        results = []
+
+        for show in data.get("results", [])[:10]:
+            results.append({
+                "id": show.get("id"),
+                "name": show.get("name"),
+                "original_name": show.get("original_name"),
+                "year": show.get("first_air_date", "")[:4] if show.get("first_air_date") else "",
+                "overview": show.get("overview", ""),
+                "poster_path": show.get("poster_path"),
+                "vote_average": show.get("vote_average")
+            })
+
+        return {"success": True, "results": results}
+
+
+@app.get("/tmdb/tv/{tv_id}")
+async def tmdb_get_tv(tv_id: int):
+    """Get detailed TV show information from TMDB."""
+    config = load_config()
+    api_key = config.get("api_keys", {}).get("tmdb", "")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="TMDB API key not configured. Please add it in Settings."
+        )
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TMDB_BASE_URL}/tv/{tv_id}",
+            params={"api_key": api_key}
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"TMDB API error: {response.text}"
+            )
+
+        show = response.json()
+
+        # Get external IDs (for IMDB ID)
+        ext_response = await client.get(
+            f"{TMDB_BASE_URL}/tv/{tv_id}/external_ids",
+            params={"api_key": api_key}
+        )
+        external_ids = ext_response.json() if ext_response.status_code == 200 else {}
+
+        result = {
+            "id": show.get("id"),
+            "tmdb_id": show.get("id"),
+            "imdb_id": external_ids.get("imdb_id", ""),
+            "name": show.get("name"),
+            "original_name": show.get("original_name"),
+            "year": show.get("first_air_date", "")[:4] if show.get("first_air_date") else "",
+            "overview": show.get("overview", ""),
+            "poster_path": show.get("poster_path"),
+            "vote_average": show.get("vote_average"),
+            "genres": [g.get("name") for g in show.get("genres", [])],
+            "spoken_languages": [l.get("english_name") for l in show.get("spoken_languages", [])],
+            "original_language": show.get("original_language"),
+            "number_of_seasons": show.get("number_of_seasons", 0),
+            "seasons": [
+                {
+                    "season_number": s.get("season_number"),
+                    "name": s.get("name"),
+                    "episode_count": s.get("episode_count"),
+                    "air_date": s.get("air_date", ""),
+                }
+                for s in show.get("seasons", [])
+                if s.get("season_number", 0) > 0  # Skip specials (season 0)
+            ],
+        }
+
+        return {"success": True, "show": result}
+
+
+@app.get("/tmdb/tv/{tv_id}/season/{season_number}")
+async def tmdb_get_season(tv_id: int, season_number: int):
+    """Get season details including episode list from TMDB."""
+    config = load_config()
+    api_key = config.get("api_keys", {}).get("tmdb", "")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="TMDB API key not configured. Please add it in Settings."
+        )
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TMDB_BASE_URL}/tv/{tv_id}/season/{season_number}",
+            params={"api_key": api_key}
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"TMDB API error: {response.text}"
+            )
+
+        season = response.json()
+
+        episodes = []
+        for ep in season.get("episodes", []):
+            episodes.append({
+                "episode_number": ep.get("episode_number"),
+                "name": ep.get("name", ""),
+                "overview": ep.get("overview", ""),
+                "air_date": ep.get("air_date", ""),
+                "runtime": ep.get("runtime"),
+                "still_path": ep.get("still_path"),
+                "vote_average": ep.get("vote_average"),
+            })
+
+        return {
+            "success": True,
+            "season_number": season.get("season_number"),
+            "name": season.get("name"),
+            "episodes": episodes,
+        }
+
+
+@app.get("/tmdb/tv/{tv_id}/season/{season_number}/episode/{episode_number}")
+async def tmdb_get_episode(tv_id: int, season_number: int, episode_number: int):
+    """Get detailed episode information from TMDB."""
+    config = load_config()
+    api_key = config.get("api_keys", {}).get("tmdb", "")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="TMDB API key not configured. Please add it in Settings."
+        )
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TMDB_BASE_URL}/tv/{tv_id}/season/{season_number}/episode/{episode_number}",
+            params={"api_key": api_key}
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"TMDB API error: {response.text}"
+            )
+
+        ep = response.json()
+
+        result = {
+            "episode_number": ep.get("episode_number"),
+            "season_number": ep.get("season_number"),
+            "name": ep.get("name", ""),
+            "overview": ep.get("overview", ""),
+            "air_date": ep.get("air_date", ""),
+            "runtime": ep.get("runtime"),
+            "still_path": ep.get("still_path"),
+            "vote_average": ep.get("vote_average"),
+        }
+
+        return {"success": True, "episode": result}
+
+
+# ============================================
 # Preview Torrent (dry-run: show files + NFO)
 # ============================================
 @app.post("/preview-torrent")
@@ -683,6 +891,165 @@ def create_torrent(req: TorrentRequest):
             os.remove(os.path.join(folder_path, f))
 
     nfo_content = generate_nfo_from_details(details, new_video_name)
+    nfo_path = os.path.join(folder_path, new_nfo_name)
+    with open(nfo_path, "w", encoding="utf-8") as fh:
+        fh.write(nfo_content)
+
+    # --- Step 3: Rename the folder ---
+    parent_dir = os.path.dirname(folder_path)
+    new_folder_path = os.path.join(parent_dir, new_base_name)
+
+    if folder_path != new_folder_path:
+        if os.path.exists(new_folder_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A folder named '{new_base_name}' already exists."
+            )
+        os.rename(folder_path, new_folder_path)
+
+    # --- Step 4: Create .torrent file ---
+    trackers = config.get("trackers", [])
+
+    torrent = Torrent(
+        path=new_folder_path,
+        trackers=trackers if trackers else None,
+        comment="Created by Torrent Creator",
+    )
+    torrent.generate()
+
+    torrent_filename = new_base_name + ".torrent"
+    torrent_file_path = os.path.join(parent_dir, torrent_filename)
+    torrent.write(torrent_file_path, overwrite=True)
+
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+
+    return {
+        "success": True,
+        "new_folder_path": new_folder_path,
+        "new_filename": new_video_name,
+        "new_base_name": new_base_name,
+        "output_dir": output_dir,
+        "torrent_file": torrent_file_path,
+        "torrent_filename": torrent_filename,
+    }
+
+
+# ============================================
+# Episode Torrent Preview & Create
+# ============================================
+@app.post("/preview-episode-torrent")
+async def preview_episode_torrent(req: EpisodeTorrentRequest):
+    """
+    Generate a preview of what the episode torrent will contain.
+    Does NOT write anything to disk.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    _, video_ext = find_video_file(folder_path)
+    if not video_ext:
+        raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
+
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "episode",
+        "{title}.S{season:02}E{episode:02}.{episode_title}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_episode_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_video_name = new_base_name + video_ext
+    new_nfo_name = new_base_name + ".NFO"
+    new_torrent_name = new_base_name + ".torrent"
+
+    nfo_content = generate_episode_nfo_from_details(details, new_video_name)
+
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+    files = [
+        {"name": new_video_name, "type": "video"},
+        {"name": new_nfo_name, "type": "nfo"},
+    ]
+
+    warnings = []
+    trackers = config.get("trackers", [])
+    if not trackers:
+        warnings.append("No trackers configured. The torrent will be created without any announce URLs.")
+
+    return {
+        "success": True,
+        "base_name": new_base_name,
+        "torrent_name": new_torrent_name,
+        "output_dir": output_dir,
+        "files": files,
+        "nfo_content": nfo_content,
+        "warnings": warnings,
+    }
+
+
+@app.post("/create-episode-torrent")
+def create_episode_torrent(req: EpisodeTorrentRequest):
+    """
+    Full episode torrent creation pipeline.
+
+    NOTE: This is a regular def (not async) so FastAPI runs it in a thread pool.
+    torrent.generate() hashes the entire video file and would block the event loop.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    video_file, video_ext = find_video_file(folder_path)
+    if not video_file:
+        raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
+
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "episode",
+        "{title}.S{season:02}E{episode:02}.{episode_title}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_episode_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_video_name = new_base_name + video_ext
+    new_nfo_name = new_base_name + ".NFO"
+
+    # --- Step 1: Rename video file ---
+    old_video_path = os.path.join(folder_path, video_file)
+    new_video_path = os.path.join(folder_path, new_video_name)
+
+    if old_video_path != new_video_path:
+        if os.path.exists(new_video_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A file named '{new_video_name}' already exists in the folder."
+            )
+        os.rename(old_video_path, new_video_path)
+
+    # --- Step 2: Remove old NFO files and write new one ---
+    for f in os.listdir(folder_path):
+        if f.upper().endswith(".NFO"):
+            os.remove(os.path.join(folder_path, f))
+
+    nfo_content = generate_episode_nfo_from_details(details, new_video_name)
     nfo_path = os.path.join(folder_path, new_nfo_name)
     with open(nfo_path, "w", encoding="utf-8") as fh:
         fh.write(nfo_content)
@@ -965,6 +1332,124 @@ def apply_movie_template(template: str, details: dict) -> str:
     result = result.strip(".")
 
     return result
+
+
+def apply_episode_template(template: str, details: dict) -> str:
+    """Apply the episode naming template with the given details.
+
+    Handles format specifiers like {season:02} and {episode:02} for zero-padding.
+    """
+    import re
+
+    show_name = details.get("show_name", details.get("name", "Unknown")).replace(" ", ".")
+    episode_title = details.get("episode_title", "").replace(" ", ".")
+    year = details.get("year", "")
+    quality = details.get("resolution", "")
+    source = details.get("source", "")
+    codec = details.get("video_codec", "")
+    group = details.get("release_group", "")
+    season = details.get("season", 0)
+    episode = details.get("episode", 0)
+
+    result = template
+    result = result.replace("{title}", show_name)
+    result = result.replace("{year}", year)
+    result = result.replace("{quality}", quality)
+    result = result.replace("{source}", source)
+    result = result.replace("{codec}", codec)
+    result = result.replace("{group}", group)
+    result = result.replace("{episode_title}", episode_title)
+
+    # Handle {season:02} and {episode:02} format specifiers
+    def replace_formatted(match):
+        field = match.group(1)
+        fmt = match.group(2)
+        if field == "season":
+            val = int(season)
+        elif field == "episode":
+            val = int(episode)
+        else:
+            return match.group(0)
+        try:
+            return format(val, fmt)
+        except (ValueError, TypeError):
+            return str(val)
+
+    result = re.sub(r"\{(season|episode):([^}]+)\}", replace_formatted, result)
+
+    # Plain {season} and {episode} without format specifier
+    result = result.replace("{season}", str(season))
+    result = result.replace("{episode}", str(episode))
+
+    # Clean up double dots and trailing dots
+    while ".." in result:
+        result = result.replace("..", ".")
+    result = result.replace(".-", "-")
+    result = result.strip(".")
+
+    return result
+
+
+def generate_episode_nfo_from_details(details: dict, filename: str) -> str:
+    """Generate NFO file content for an episode torrent."""
+    config = load_config()
+    ascii_art = load_ascii_art()
+    nfo_config = config.get("nfo", {})
+
+    lines = [ascii_art, ""]
+
+    lines.extend([
+        f"Show        : {details.get('show_name', 'Unknown')}",
+        f"Season      : {details.get('season', '')}",
+        f"Episode     : {details.get('episode', '')}",
+        f"Title       : {details.get('episode_title', '')}",
+        f"Year        : {details.get('year', '')}",
+        f"Type        : Episode",
+        f"Filename    : {filename}",
+    ])
+
+    if details.get("resolution"):
+        lines.append(f"Resolution  : {details['resolution']}")
+    if details.get("source"):
+        lines.append(f"Source      : {details['source']}")
+    if details.get("video_codec"):
+        lines.append(f"Video Codec : {details['video_codec']}")
+    if details.get("audio_codec"):
+        lines.append(f"Audio Codec : {details['audio_codec']}")
+    if details.get("audio_channels"):
+        lines.append(f"Audio       : {details['audio_channels']}")
+    if details.get("bit_depth"):
+        lines.append(f"Bit Depth   : {details['bit_depth']}")
+    if details.get("hdr_format"):
+        lines.append(f"HDR Format  : {details['hdr_format']}")
+    if details.get("language"):
+        lines.append(f"Language    : {details['language']}")
+    if details.get("size"):
+        lines.append(f"File Size   : {details['size']}")
+    if details.get("runtime"):
+        lines.append(f"Runtime     : {details['runtime']}")
+    if details.get("release_group"):
+        lines.append(f"Group       : {details['release_group']}")
+    if details.get("imdb_id"):
+        lines.append(f"IMDb        : https://www.imdb.com/title/{details['imdb_id']}/")
+    if details.get("tmdb_id"):
+        lines.append(f"TMDB        : https://www.themoviedb.org/tv/{details['tmdb_id']}")
+
+    if details.get("overview"):
+        lines.append("")
+        lines.append("Plot:")
+        lines.append(details["overview"])
+
+    lines.append("")
+    lines.append("=" * 50)
+
+    if nfo_config.get("include_notes", True):
+        notes = nfo_config.get("notes_template", "Enjoy and seed!")
+        if notes:
+            lines.append("")
+            lines.append(notes)
+
+    return "\n".join(lines)
 
 
 def generate_nfo_from_details(details: dict, filename: str) -> str:

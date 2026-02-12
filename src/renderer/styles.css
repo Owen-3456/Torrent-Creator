@@ -308,7 +308,8 @@ main {
   box-shadow: 0 0 40px var(--accent-glow);
 }
 
-#movie-upload-status {
+#movie-upload-status,
+#episode-upload-status {
   margin-top: 1rem;
   font-size: 0.95rem;
   font-weight: 500;
@@ -448,7 +449,8 @@ main {
   margin-bottom: 0.75rem;
 }
 
-#torrent-tree {
+#torrent-tree,
+#episode-torrent-tree {
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.9rem;
   color: var(--accent-secondary);
@@ -459,7 +461,8 @@ main {
 /* ============================================
    Forms
    ============================================ */
-#movie-details-form {
+#movie-details-form,
+#episode-details-form {
   width: 100%;
   max-width: 520px;
   display: flex;
@@ -467,7 +470,8 @@ main {
   gap: 1rem;
 }
 
-#movie-details-form label {
+#movie-details-form label,
+#episode-details-form label {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -478,7 +482,10 @@ main {
 
 #movie-details-form input[type="text"],
 #movie-details-form select,
-#movie-details-form textarea {
+#movie-details-form textarea,
+#episode-details-form input[type="text"],
+#episode-details-form select,
+#episode-details-form textarea {
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
@@ -492,18 +499,24 @@ main {
 
 #movie-details-form input[type="text"]:focus,
 #movie-details-form select:focus,
-#movie-details-form textarea:focus {
+#movie-details-form textarea:focus,
+#episode-details-form input[type="text"]:focus,
+#episode-details-form select:focus,
+#episode-details-form textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 #movie-details-form input[type="text"]::placeholder,
-#movie-details-form textarea::placeholder {
+#movie-details-form textarea::placeholder,
+#episode-details-form input[type="text"]::placeholder,
+#episode-details-form textarea::placeholder {
   color: var(--text-muted);
 }
 
-#movie-details-form textarea {
+#movie-details-form textarea,
+#episode-details-form textarea {
   resize: vertical;
   min-height: 80px;
   max-height: 200px;
@@ -640,9 +653,57 @@ main {
 }
 
 /* Readonly fields (like Size) */
-#movie-details-form input[readonly] {
+#movie-details-form input[readonly],
+#episode-details-form input[readonly] {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* ============================================
+   Episode Picker (Season/Episode Dropdowns)
+   ============================================ */
+.episode-picker {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.picker-row label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.picker-row select {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.picker-row select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 /* ============================================

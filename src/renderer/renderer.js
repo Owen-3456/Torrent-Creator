@@ -7,8 +7,10 @@ const backendStatus = document.getElementById("backend-status");
 const mainMenu = document.getElementById("main-menu");
 const selectType = document.getElementById("select-type");
 const uploadMovie = document.getElementById("upload-movie");
+const uploadEpisode = document.getElementById("upload-episode");
 const torrentList = document.getElementById("torrent-list");
 const movieDetails = document.getElementById("movie-details");
+const episodeDetails = document.getElementById("episode-details");
 
 // Main Menu buttons
 const menuCreate = document.getElementById("menu-create");
@@ -25,6 +27,11 @@ const typeBack = document.getElementById("type-back");
 const uploadBox = document.getElementById("upload-box");
 const movieUploadStatus = document.getElementById("movie-upload-status");
 const uploadBack = document.getElementById("upload-back");
+
+// Episode upload screen
+const episodeUploadBox = document.getElementById("episode-upload-box");
+const episodeUploadStatus = document.getElementById("episode-upload-status");
+const episodeUploadBack = document.getElementById("episode-upload-back");
 
 // Torrent list screen
 const torrentListContainer = document.getElementById("torrent-list-container");
@@ -89,6 +96,43 @@ const movieHdrFormat = document.getElementById("movie-hdr-format");
 const movieAudioChannels = document.getElementById("movie-audio-channels");
 const detailsBack = document.getElementById("details-back");
 
+// Episode details screen
+const episodeTorrentTree = document.getElementById("episode-torrent-tree");
+const episodeDetailsForm = document.getElementById("episode-details-form");
+const episodeShowName = document.getElementById("episode-show-name");
+const episodeSeason = document.getElementById("episode-season");
+const episodeEpisode = document.getElementById("episode-episode");
+const episodeTitle = document.getElementById("episode-title");
+const episodeYear = document.getElementById("episode-year");
+const episodeRuntime = document.getElementById("episode-runtime");
+const episodeSize = document.getElementById("episode-size");
+const episodeLanguage = document.getElementById("episode-language");
+const episodeResolution = document.getElementById("episode-resolution");
+const episodeSource = document.getElementById("episode-source");
+const episodeVideoCodec = document.getElementById("episode-video-codec");
+const episodeAudioCodec = document.getElementById("episode-audio-codec");
+const episodeContainer = document.getElementById("episode-container");
+const episodeReleaseGroup = document.getElementById("episode-release-group");
+const episodeTmdbId = document.getElementById("episode-tmdb-id");
+const episodeImdbId = document.getElementById("episode-imdb-id");
+const episodeOverview = document.getElementById("episode-overview");
+const episodeBitDepth = document.getElementById("episode-bit-depth");
+const episodeHdrFormat = document.getElementById("episode-hdr-format");
+const episodeAudioChannels = document.getElementById("episode-audio-channels");
+const episodeDetailsBack = document.getElementById("episode-details-back");
+
+// TMDB TV Search elements
+const tmdbTvSearchInput = document.getElementById("tmdb-tv-search-input");
+const tmdbTvSearchBtn = document.getElementById("tmdb-tv-search-btn");
+const tmdbTvSearchResults = document.getElementById("tmdb-tv-search-results");
+const tmdbEpisodePicker = document.getElementById("tmdb-episode-picker");
+const tmdbSeasonSelect = document.getElementById("tmdb-season-select");
+const tmdbEpisodeSelect = document.getElementById("tmdb-episode-select");
+
+// Track selected TV show for episode picker
+let selectedTvShowId = null;
+let selectedTvShowData = null;
+
 // Torrent preview screen
 const torrentPreview = document.getElementById("torrent-preview");
 const previewClose = document.getElementById("preview-close");
@@ -123,6 +167,12 @@ const revertableFieldIds = [
   "movie-video-codec", "movie-audio-codec", "movie-container",
   "movie-release-group", "movie-bit-depth", "movie-hdr-format",
   "movie-audio-channels", "movie-tmdb-id", "movie-imdb-id", "movie-overview",
+  "episode-show-name", "episode-season", "episode-episode", "episode-title",
+  "episode-year", "episode-runtime", "episode-size",
+  "episode-language", "episode-resolution", "episode-source",
+  "episode-video-codec", "episode-audio-codec", "episode-container",
+  "episode-release-group", "episode-bit-depth", "episode-hdr-format",
+  "episode-audio-channels", "episode-tmdb-id", "episode-imdb-id", "episode-overview",
 ];
 
 // Guessit source -> dropdown value mapping
@@ -161,6 +211,9 @@ const customDropdownIds = [
   "movie-language", "movie-resolution", "movie-source",
   "movie-video-codec", "movie-audio-codec", "movie-container",
   "movie-bit-depth", "movie-hdr-format", "movie-audio-channels",
+  "episode-language", "episode-resolution", "episode-source",
+  "episode-video-codec", "episode-audio-codec", "episode-container",
+  "episode-bit-depth", "episode-hdr-format", "episode-audio-channels",
 ];
 
 /**
@@ -276,7 +329,7 @@ function enforceTimeInput(inputEl) {
 // ============================================
 // Screen Navigation
 // ============================================
-const screens = [mainMenu, selectType, uploadMovie, torrentList, movieDetails, torrentSuccess];
+const screens = [mainMenu, selectType, uploadMovie, uploadEpisode, torrentList, movieDetails, episodeDetails, torrentSuccess];
 
 function showScreen(screen) {
   screens.forEach((s) => (s.style.display = "none"));
@@ -288,11 +341,16 @@ function showScreen(screen) {
   } else if (screen === "upload") {
     uploadMovie.style.display = "flex";
     resetUploadStatus();
+  } else if (screen === "upload-episode") {
+    uploadEpisode.style.display = "flex";
+    resetEpisodeUploadStatus();
   } else if (screen === "torrent-list") {
     torrentList.style.display = "flex";
     loadTorrentList();
   } else if (screen === "details") {
     movieDetails.style.display = "flex";
+  } else if (screen === "episode-details") {
+    episodeDetails.style.display = "flex";
   } else if (screen === "success") {
     torrentSuccess.style.display = "flex";
   }
@@ -301,6 +359,11 @@ function showScreen(screen) {
 function resetUploadStatus() {
   movieUploadStatus.textContent = "";
   movieUploadStatus.style.color = "";
+}
+
+function resetEpisodeUploadStatus() {
+  episodeUploadStatus.textContent = "";
+  episodeUploadStatus.style.color = "";
 }
 
 // ============================================
@@ -326,6 +389,9 @@ typeMovie.addEventListener("click", () => {
 });
 
 // Episode and Season buttons are disabled in HTML with "Coming Soon" badges
+typeEpisode.addEventListener("click", () => {
+  showScreen("upload-episode");
+});
 
 typeBack.addEventListener("click", () => {
   showScreen("menu");
@@ -344,6 +410,45 @@ uploadBox.addEventListener("click", async () => {
 uploadBack.addEventListener("click", () => {
   showScreen("select-type");
 });
+
+// ============================================
+// Episode Upload Screen Event Handlers
+// ============================================
+episodeUploadBox.addEventListener("click", async () => {
+  const filepath = await window.api.selectFile();
+  if (filepath) {
+    handleEpisodeFileUpload(filepath);
+  }
+});
+
+episodeUploadBack.addEventListener("click", () => {
+  showScreen("select-type");
+});
+
+async function handleEpisodeFileUpload(filepath) {
+  episodeUploadStatus.textContent = "Processing file...";
+  episodeUploadStatus.style.color = "var(--accent-primary)";
+
+  try {
+    const response = await window.api.fetch("/parse", {
+      method: "POST",
+      body: JSON.stringify({ filepath: filepath }),
+    });
+
+    if (response.success) {
+      episodeUploadStatus.textContent = "File processed successfully!";
+      episodeUploadStatus.style.color = "var(--success)";
+      currentTorrentFolder = response.target_folder;
+      showEpisodeDetails(response);
+    } else {
+      episodeUploadStatus.textContent = "Error: " + (response.error || "Failed to process file.");
+      episodeUploadStatus.style.color = "var(--error)";
+    }
+  } catch (error) {
+    episodeUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the file.");
+    episodeUploadStatus.style.color = "var(--error)";
+  }
+}
 
 async function handleFileUpload(filepath) {
   movieUploadStatus.textContent = "Processing file...";
@@ -438,7 +543,11 @@ async function loadTorrentDetails(folderPath) {
 
     if (response.success) {
       currentTorrentFolder = folderPath;
-      showMovieDetails(response);
+      if (response.media_type === "episode") {
+        showEpisodeDetails(response);
+      } else {
+        showMovieDetails(response);
+      }
     } else {
       alert("Failed to load torrent details: " + (response.error || "Unknown error"));
     }
@@ -506,6 +615,7 @@ function snapshotFieldDefaults() {
 }
 
 function showMovieDetails(data) {
+  currentMediaType = "movie";
   showScreen("details");
 
   // Build the torrent tree display
@@ -601,6 +711,7 @@ movieDetailsForm.addEventListener("submit", async (e) => {
 
     if (response.success) {
       pendingTorrentData = formData;
+      currentMediaType = "movie";
       showTorrentPreview(response);
     } else {
       alert("Failed to generate preview: " + (response.detail || "Unknown error"));
@@ -612,6 +723,360 @@ movieDetailsForm.addEventListener("submit", async (e) => {
     submitBtn.disabled = false;
   }
 });
+
+// ============================================
+// Episode Details Screen
+// ============================================
+episodeDetailsBack.addEventListener("click", () => {
+  showScreen("menu");
+});
+
+// Track the current media type for preview/create routing
+let currentMediaType = "movie";
+
+function showEpisodeDetails(data) {
+  currentMediaType = "episode";
+  showScreen("episode-details");
+
+  const filename = data.filename;
+  const baseName = filename.replace(/\.[^.]+$/, "");
+
+  episodeTorrentTree.textContent = [
+    `${cachedOutputDir}/`,
+    `└── ${baseName}/`,
+    `    ├── ${filename}`,
+    `    └── ${baseName}.NFO`,
+  ].join("\n");
+
+  const parsed = data.parsed || {};
+  const metadata = data.metadata || {};
+
+  episodeShowName.value = parsed.title || baseName;
+  episodeSeason.value = parsed.season || "";
+  episodeEpisode.value = parsed.episode || "";
+  episodeTitle.value = parsed.episode_title || "";
+  episodeYear.value = parsed.year || "";
+  episodeRuntime.value = metadata.duration || "";
+  episodeSize.value = metadata.file_size || "";
+  setSelectValue(episodeLanguage, parsed.language || "");
+  setSelectValue(episodeResolution, metadata.resolution || parsed.resolution || "");
+  setSelectValue(episodeSource, normalizeSource(parsed.source));
+  setSelectValue(episodeVideoCodec, metadata.video_codec || parsed.video_codec || "");
+  setSelectValue(episodeAudioCodec, metadata.audio_codec || parsed.audio_codec || "");
+  setSelectValue(episodeContainer, (parsed.container || "").toUpperCase());
+  episodeReleaseGroup.value = parsed.release_group || cachedReleaseGroup;
+  setSelectValue(episodeBitDepth, metadata.bit_depth || "");
+  setSelectValue(episodeHdrFormat, metadata.hdr_format || "");
+  setSelectValue(episodeAudioChannels, metadata.audio_channels || "");
+  episodeTmdbId.value = "";
+  episodeImdbId.value = "";
+  episodeOverview.value = "";
+
+  // Inject revert buttons
+  injectRevertButtons();
+  snapshotFieldDefaults();
+
+  // Reset TMDB TV search state
+  tmdbTvSearchInput.value = parsed.title || "";
+  tmdbTvSearchResults.innerHTML = "";
+  tmdbEpisodePicker.style.display = "none";
+  selectedTvShowId = null;
+  selectedTvShowData = null;
+
+  // Auto-search if we have a title
+  if (parsed.title) {
+    autoSelectFirstTvResult(parsed.title);
+  }
+}
+
+function collectEpisodeFormData() {
+  return {
+    folder_path: currentTorrentFolder,
+    name: episodeShowName.value,
+    show_name: episodeShowName.value,
+    season: parseInt(episodeSeason.value) || 0,
+    episode: parseInt(episodeEpisode.value) || 0,
+    episode_title: episodeTitle.value,
+    year: episodeYear.value,
+    runtime: episodeRuntime.value,
+    size: episodeSize.value,
+    language: getSelectValue(episodeLanguage),
+    resolution: getSelectValue(episodeResolution),
+    source: getSelectValue(episodeSource),
+    video_codec: getSelectValue(episodeVideoCodec),
+    audio_codec: getSelectValue(episodeAudioCodec),
+    container: getSelectValue(episodeContainer),
+    release_group: episodeReleaseGroup.value,
+    tmdb_id: episodeTmdbId.value,
+    imdb_id: episodeImdbId.value,
+    overview: episodeOverview.value,
+    bit_depth: getSelectValue(episodeBitDepth),
+    hdr_format: getSelectValue(episodeHdrFormat),
+    audio_channels: getSelectValue(episodeAudioChannels),
+  };
+}
+
+episodeDetailsForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = collectEpisodeFormData();
+  const submitBtn = episodeDetailsForm.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Loading preview...";
+
+  try {
+    const response = await window.api.fetch("/preview-episode-torrent", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    if (response.success) {
+      pendingTorrentData = formData;
+      currentMediaType = "episode";
+      showTorrentPreview(response);
+    } else {
+      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
+    }
+  } catch (error) {
+    alert("Error generating preview: " + error.message);
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+});
+
+// ============================================
+// TMDB TV Search
+// ============================================
+tmdbTvSearchBtn.addEventListener("click", () => {
+  performTmdbTvSearch();
+});
+
+tmdbTvSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    performTmdbTvSearch();
+  }
+});
+
+async function performTmdbTvSearch() {
+  const query = tmdbTvSearchInput.value.trim();
+  if (!query) return;
+
+  tmdbTvSearchBtn.disabled = true;
+  tmdbTvSearchResults.innerHTML = '<div class="search-loading">Searching...</div>';
+  tmdbEpisodePicker.style.display = "none";
+
+  try {
+    const response = await window.api.fetch("/tmdb/search-tv", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      renderTvSearchResults(response.results);
+    } else {
+      tmdbTvSearchResults.innerHTML = '<div class="search-empty">No TV shows found</div>';
+    }
+  } catch (error) {
+    tmdbTvSearchResults.innerHTML = `<div class="search-error">${error.message}</div>`;
+  } finally {
+    tmdbTvSearchBtn.disabled = false;
+  }
+}
+
+function renderTvSearchResults(results) {
+  tmdbTvSearchResults.innerHTML = "";
+
+  results.forEach((show) => {
+    const item = document.createElement("div");
+    item.className = "search-result-item";
+
+    const posterUrl = show.poster_path
+      ? `https://image.tmdb.org/t/p/w92${show.poster_path}`
+      : null;
+
+    item.innerHTML = `
+      ${
+        posterUrl
+          ? `<img class="search-result-poster" src="${posterUrl}" alt="${show.name}" />`
+          : `<div class="search-result-poster no-poster">No Image</div>`
+      }
+      <div class="search-result-info">
+        <div class="search-result-title">${show.name}</div>
+        <div class="search-result-meta">${show.year || "Unknown year"}${show.vote_average ? ` • ${show.vote_average.toFixed(1)}/10` : ""}</div>
+        ${show.overview ? `<div class="search-result-overview">${show.overview}</div>` : ""}
+      </div>
+    `;
+
+    item.addEventListener("click", (e) => {
+      selectTvShow(show.id, e.currentTarget);
+    });
+
+    tmdbTvSearchResults.appendChild(item);
+  });
+}
+
+async function selectTvShow(tvId, clickedItem) {
+  // Mark selected item
+  const items = tmdbTvSearchResults.querySelectorAll(".search-result-item");
+  items.forEach((item) => item.classList.remove("selected"));
+  clickedItem.classList.add("selected");
+
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${tvId}`);
+
+    if (response.success && response.show) {
+      selectedTvShowId = tvId;
+      selectedTvShowData = response.show;
+      fillTvShowDetails(response.show);
+      showEpisodePicker(response.show);
+    }
+  } catch (error) {
+    console.error("Failed to fetch TV show details:", error);
+  }
+}
+
+function fillTvShowDetails(show) {
+  episodeShowName.value = show.name || "";
+  episodeYear.value = show.year || "";
+  episodeTmdbId.value = show.tmdb_id || "";
+  episodeImdbId.value = show.imdb_id || "";
+
+  // Set language from spoken languages or original language
+  if (show.spoken_languages && show.spoken_languages.length > 0) {
+    setSelectValue(episodeLanguage, show.spoken_languages[0]);
+  } else if (show.original_language) {
+    const langNames = {
+      en: "English", es: "Spanish", fr: "French", de: "German",
+      it: "Italian", ja: "Japanese", ko: "Korean", zh: "Chinese",
+      ru: "Russian", pt: "Portuguese",
+    };
+    setSelectValue(episodeLanguage, langNames[show.original_language] || show.original_language);
+  }
+
+  snapshotFieldDefaults();
+}
+
+function showEpisodePicker(show) {
+  tmdbEpisodePicker.style.display = "";
+
+  // Populate season dropdown
+  tmdbSeasonSelect.innerHTML = '<option value="">-- Select Season --</option>';
+  tmdbEpisodeSelect.innerHTML = '<option value="">-- Select Episode --</option>';
+
+  if (show.seasons && show.seasons.length > 0) {
+    show.seasons.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.season_number;
+      opt.textContent = `Season ${s.season_number} (${s.episode_count} episodes)`;
+      tmdbSeasonSelect.appendChild(opt);
+    });
+
+    // Auto-select season if parsed
+    const currentSeason = episodeSeason.value;
+    if (currentSeason) {
+      tmdbSeasonSelect.value = currentSeason;
+      loadSeasonEpisodes(show.id || selectedTvShowId, parseInt(currentSeason));
+    }
+  }
+}
+
+tmdbSeasonSelect.addEventListener("change", () => {
+  const seasonNum = tmdbSeasonSelect.value;
+  if (seasonNum && selectedTvShowId) {
+    episodeSeason.value = seasonNum;
+    loadSeasonEpisodes(selectedTvShowId, parseInt(seasonNum));
+  }
+});
+
+async function loadSeasonEpisodes(tvId, seasonNumber) {
+  tmdbEpisodeSelect.innerHTML = '<option value="">Loading...</option>';
+
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${tvId}/season/${seasonNumber}`);
+
+    if (response.success && response.episodes) {
+      tmdbEpisodeSelect.innerHTML = '<option value="">-- Select Episode --</option>';
+      response.episodes.forEach((ep) => {
+        const opt = document.createElement("option");
+        opt.value = ep.episode_number;
+        opt.textContent = `E${String(ep.episode_number).padStart(2, "0")} - ${ep.name || "Untitled"}`;
+        tmdbEpisodeSelect.appendChild(opt);
+      });
+
+      // Auto-select episode if parsed
+      const currentEpisode = episodeEpisode.value;
+      if (currentEpisode) {
+        tmdbEpisodeSelect.value = currentEpisode;
+        if (tmdbEpisodeSelect.value === currentEpisode) {
+          loadEpisodeDetails(tvId, seasonNumber, parseInt(currentEpisode));
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to load season episodes:", error);
+    tmdbEpisodeSelect.innerHTML = '<option value="">Failed to load</option>';
+  }
+}
+
+tmdbEpisodeSelect.addEventListener("change", () => {
+  const episodeNum = tmdbEpisodeSelect.value;
+  const seasonNum = tmdbSeasonSelect.value;
+  if (episodeNum && seasonNum && selectedTvShowId) {
+    episodeEpisode.value = episodeNum;
+    loadEpisodeDetails(selectedTvShowId, parseInt(seasonNum), parseInt(episodeNum));
+  }
+});
+
+async function loadEpisodeDetails(tvId, seasonNumber, episodeNumber) {
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`);
+
+    if (response.success && response.episode) {
+      const ep = response.episode;
+      episodeTitle.value = ep.name || "";
+      episodeOverview.value = ep.overview || "";
+
+      // Only overwrite runtime if we don't already have a precise ffprobe value
+      const currentRuntime = episodeRuntime.value.trim();
+      if (!currentRuntime && ep.runtime) {
+        const totalMinutes = ep.runtime;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        episodeRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+      }
+
+      snapshotFieldDefaults();
+    }
+  } catch (error) {
+    console.error("Failed to load episode details:", error);
+  }
+}
+
+async function autoSelectFirstTvResult(query) {
+  try {
+    const response = await window.api.fetch("/tmdb/search-tv", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      const firstShow = response.results[0];
+      const showResponse = await window.api.fetch(`/tmdb/tv/${firstShow.id}`);
+
+      if (showResponse.success && showResponse.show) {
+        selectedTvShowId = firstShow.id;
+        selectedTvShowData = showResponse.show;
+        fillTvShowDetails(showResponse.show);
+        showEpisodePicker(showResponse.show);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to auto-select TV result:", error);
+  }
+}
 
 // ============================================
 // Torrent Preview Screen
@@ -676,7 +1141,8 @@ previewConfirm.addEventListener("click", async () => {
   previewConfirm.textContent = "Creating torrent...";
 
   try {
-    const response = await window.api.fetch("/create-torrent", {
+    const createEndpoint = currentMediaType === "episode" ? "/create-episode-torrent" : "/create-torrent";
+    const response = await window.api.fetch(createEndpoint, {
       method: "POST",
       body: JSON.stringify(pendingTorrentData),
     });
@@ -1152,6 +1618,11 @@ setInterval(checkBackendConnection, 5000);
 enforceNumericInput(movieYear);
 enforceTimeInput(movieRuntime);
 enforceNumericInput(movieTmdbId);
+enforceNumericInput(episodeYear);
+enforceNumericInput(episodeSeason);
+enforceNumericInput(episodeEpisode);
+enforceTimeInput(episodeRuntime);
+enforceNumericInput(episodeTmdbId);
 
 // ============================================
 // Revert Button System
