@@ -623,13 +623,17 @@ async def preview_torrent(req: TorrentRequest):
 # Create Torrent (.torrent file generation)
 # ============================================
 @app.post("/create-torrent")
-async def create_torrent(req: TorrentRequest):
+def create_torrent(req: TorrentRequest):
     """
     Full torrent creation pipeline:
     1. Rename video file + folder using the naming template
     2. Generate and write the NFO file
     3. Create a .torrent file from the folder contents using configured trackers
     Returns the path to the created .torrent file.
+
+    NOTE: This is a regular def (not async) so FastAPI runs it in a thread pool.
+    torrent.generate() hashes the entire video file and would block the event loop
+    if this were async, causing "Failed to fetch" timeouts on large files.
     """
     folder_path = req.folder_path
     if folder_path.startswith("~"):
