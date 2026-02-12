@@ -32,7 +32,13 @@ contextBridge.exposeInMainWorld("api", {
     }
 
     const response = await fetch(url, fetchOptions);
-    const data = await response.json();
+
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Backend returned non-JSON response (status ${response.status}). The backend may have crashed or is unavailable.`);
+    }
 
     if (!response.ok) {
       const errorMessage = data.detail || `Request failed with status ${response.status}`;

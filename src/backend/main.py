@@ -84,8 +84,12 @@ def init_config():
 def load_config() -> dict:
     """Load configuration from file."""
     if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Failed to load config ({e}), using defaults")
+            return DEFAULT_CONFIG.copy()
     return DEFAULT_CONFIG.copy()
 
 
@@ -99,8 +103,12 @@ def save_config(config: dict):
 def load_ascii_art() -> str:
     """Load ASCII art from file."""
     if os.path.exists(ASCII_ART_PATH):
-        with open(ASCII_ART_PATH, "r") as f:
-            return f.read()
+        try:
+            with open(ASCII_ART_PATH, "r", encoding="utf-8") as f:
+                return f.read()
+        except (IOError, UnicodeDecodeError) as e:
+            print(f"Warning: Failed to load ASCII art ({e}), using defaults")
+            return DEFAULT_ASCII_ART
     return DEFAULT_ASCII_ART
 
 
@@ -148,7 +156,7 @@ class TMDBSearchRequest(BaseModel):
     year: Optional[int] = None
 
 
-class SaveMovieRequest(BaseModel):
+class TorrentRequest(BaseModel):
     folder_path: str
     name: str
     year: str
@@ -267,11 +275,14 @@ def parse_and_process_file(file_req: FileRequest):
     # Target file path
     target_file = os.path.join(target_folder, filename)
 
-    # Move the file (only if not already there)
+    # Copy the file (only if not already there)
     if os.path.abspath(filepath) != os.path.abspath(target_file):
         if os.path.exists(target_file):
-            os.remove(target_file)
-        shutil.move(filepath, target_file)
+            raise HTTPException(
+                status_code=409,
+                detail=f"A file named '{filename}' already exists in the target folder. Please remove it first."
+            )
+        shutil.copy2(filepath, target_file)
 
     # Create NFO file
     nfo_path = os.path.join(target_folder, f"{base_name}.NFO")
@@ -333,15 +344,9 @@ def get_torrent_details(folder_req: FolderRequest):
             detail=f"Folder not found: {folder_path}"
         )
 
-    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
-    video_file = None
+    video_file, video_ext = find_video_file(folder_path)
+    video_file_found = video_file is not None
     files = os.listdir(folder_path)
-
-    for f in files:
-        ext = os.path.splitext(f)[1].lower()
-        if ext in video_extensions:
-            video_file = f
-            break
 
     if not video_file:
         video_file = os.path.basename(folder_path) + ".mp4"
@@ -349,9 +354,9 @@ def get_torrent_details(folder_req: FolderRequest):
     parsed = guessit(video_file)
     parsed_dict = serialize_parsed(parsed)
 
-    # Extract metadata from the actual video file if it exists
+    # Extract metadata from the actual video file only if one was found
     file_metadata = {}
-    if video_file:
+    if video_file_found:
         video_file_path = os.path.join(folder_path, video_file)
         if os.path.exists(video_file_path):
             file_metadata = get_file_metadata(video_file_path)
@@ -546,116 +551,10 @@ async def tmdb_get_movie(movie_id: int):
 
 
 # ============================================
-# Save Movie (rename + NFO regeneration)
-# ============================================
-@app.post("/save-movie")
-async def save_movie(req: SaveMovieRequest):
-    """
-    Save edited movie details:
-    1. Apply naming template to generate a new base name
-    2. Rename the video file inside the folder
-    3. Rename the folder itself
-    4. Regenerate the NFO with full details
-    Returns the new folder path, filename, and tree for the UI.
-    """
-    folder_path = req.folder_path
-
-    if folder_path.startswith("~"):
-        folder_path = os.path.expanduser(folder_path)
-
-    if not os.path.isdir(folder_path):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Folder not found: {folder_path}"
-        )
-
-    # Find the video file in the folder
-    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
-    video_file = None
-    video_ext = ""
-
-    for f in os.listdir(folder_path):
-        ext = os.path.splitext(f)[1].lower()
-        if ext in video_extensions:
-            video_file = f
-            video_ext = ext
-            break
-
-    if not video_file:
-        raise HTTPException(
-            status_code=400,
-            detail="No video file found in the torrent folder."
-        )
-
-    # Build the new base name from the naming template
-    config = load_config()
-    template = config.get("naming_templates", {}).get(
-        "movie", "{title}.{year}.{quality}.{source}.{codec}-{group}"
-    )
-
-    details = req.model_dump()
-    new_base_name = apply_movie_template(template, details)
-
-    if not new_base_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Naming template produced an empty name. Check your template and fields."
-        )
-
-    new_video_name = new_base_name + video_ext
-    new_nfo_name = new_base_name + ".NFO"
-
-    # --- Step 1: Rename video file ---
-    old_video_path = os.path.join(folder_path, video_file)
-    new_video_path = os.path.join(folder_path, new_video_name)
-
-    if old_video_path != new_video_path:
-        if os.path.exists(new_video_path):
-            raise HTTPException(
-                status_code=409,
-                detail=f"A file named '{new_video_name}' already exists in the folder."
-            )
-        os.rename(old_video_path, new_video_path)
-
-    # --- Step 2: Remove old NFO files and write new one ---
-    for f in os.listdir(folder_path):
-        if f.upper().endswith(".NFO"):
-            os.remove(os.path.join(folder_path, f))
-
-    nfo_content = generate_nfo_from_details(details, new_video_name)
-    nfo_path = os.path.join(folder_path, new_nfo_name)
-    with open(nfo_path, "w", encoding="utf-8") as fh:
-        fh.write(nfo_content)
-
-    # --- Step 3: Rename the folder ---
-    parent_dir = os.path.dirname(folder_path)
-    new_folder_path = os.path.join(parent_dir, new_base_name)
-
-    if folder_path != new_folder_path:
-        if os.path.exists(new_folder_path):
-            raise HTTPException(
-                status_code=409,
-                detail=f"A folder named '{new_base_name}' already exists."
-            )
-        os.rename(folder_path, new_folder_path)
-
-    # Build the output directory display path (unexpanded for display)
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-
-    return {
-        "success": True,
-        "new_folder_path": new_folder_path,
-        "new_filename": new_video_name,
-        "new_base_name": new_base_name,
-        "output_dir": output_dir
-    }
-
-
-# ============================================
 # Preview Torrent (dry-run: show files + NFO)
 # ============================================
 @app.post("/preview-torrent")
-async def preview_torrent(req: SaveMovieRequest):
+async def preview_torrent(req: TorrentRequest):
     """
     Generate a preview of what the torrent will contain:
     - The new file/folder names after applying the naming template
@@ -670,13 +569,7 @@ async def preview_torrent(req: SaveMovieRequest):
         raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
 
     # Find current video file to know the extension
-    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
-    video_ext = ""
-    for f in os.listdir(folder_path):
-        ext = os.path.splitext(f)[1].lower()
-        if ext in video_extensions:
-            video_ext = ext
-            break
+    _, video_ext = find_video_file(folder_path)
 
     if not video_ext:
         raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
@@ -709,6 +602,12 @@ async def preview_torrent(req: SaveMovieRequest):
         {"name": new_nfo_name, "type": "nfo"},
     ]
 
+    # Collect warnings
+    warnings = []
+    trackers = config.get("trackers", [])
+    if not trackers:
+        warnings.append("No trackers configured. The torrent will be created without any announce URLs.")
+
     return {
         "success": True,
         "base_name": new_base_name,
@@ -716,6 +615,7 @@ async def preview_torrent(req: SaveMovieRequest):
         "output_dir": output_dir,
         "files": files,
         "nfo_content": nfo_content,
+        "warnings": warnings,
     }
 
 
@@ -723,7 +623,7 @@ async def preview_torrent(req: SaveMovieRequest):
 # Create Torrent (.torrent file generation)
 # ============================================
 @app.post("/create-torrent")
-async def create_torrent(req: SaveMovieRequest):
+async def create_torrent(req: TorrentRequest):
     """
     Full torrent creation pipeline:
     1. Rename video file + folder using the naming template
@@ -739,15 +639,7 @@ async def create_torrent(req: SaveMovieRequest):
         raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
 
     # Find the video file
-    video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
-    video_file = None
-    video_ext = ""
-    for f in os.listdir(folder_path):
-        ext = os.path.splitext(f)[1].lower()
-        if ext in video_extensions:
-            video_file = f
-            video_ext = ext
-            break
+    video_file, video_ext = find_video_file(folder_path)
 
     if not video_file:
         raise HTTPException(status_code=400, detail="No video file found in the torrent folder.")
@@ -809,7 +701,7 @@ async def create_torrent(req: SaveMovieRequest):
     torrent = Torrent(
         path=new_folder_path,
         trackers=trackers if trackers else None,
-        comment=f"Created by Torrent Creator",
+        comment="Created by Torrent Creator",
     )
     torrent.generate()
 
@@ -1009,6 +901,21 @@ def get_file_metadata(filepath: str) -> dict:
 # ============================================
 # Helper Functions
 # ============================================
+VIDEO_EXTENSIONS = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
+
+
+def find_video_file(folder_path: str) -> tuple:
+    """Find the first video file in a folder.
+
+    Returns (filename, extension) if found, or (None, None) if not.
+    """
+    for f in os.listdir(folder_path):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in VIDEO_EXTENSIONS:
+            return f, ext
+    return None, None
+
+
 def serialize_parsed(parsed: dict) -> dict:
     """Convert guessit parsed dict to JSON-serializable format."""
     parsed_dict = {}

@@ -28,7 +28,6 @@
 
   --success: #22c55e;
   --error: #ef4444;
-  --warning: #f59e0b;
 
   /* Spacing */
   --radius-sm: 6px;
@@ -194,6 +193,38 @@ main {
   color: var(--text-secondary);
 }
 
+/* Disabled Button (Coming Soon) */
+.disabled-btn {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.disabled-btn:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-color);
+}
+
+.disabled-btn::before {
+  display: none;
+}
+
+.coming-soon-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.15rem 0.5rem;
+  margin-left: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
 .back-btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-hover);
@@ -275,12 +306,6 @@ main {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   box-shadow: 0 0 40px var(--accent-glow);
-}
-
-.upload-box.drag-over {
-  border-color: var(--accent-secondary);
-  background: var(--bg-tertiary);
-  transform: scale(1.02);
 }
 
 #movie-upload-status {
@@ -1269,6 +1294,23 @@ main {
 
 .preview-footer .main-btn {
   padding: 0.75rem 2rem;
+}
+
+/* Preview Warnings */
+.preview-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-warning-item {
+  padding: 0.75rem 1rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  color: #f59e0b;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 /* ============================================

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -38,6 +38,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -45,10 +46,15 @@ function createWindow() {
     },
   });
 
+  // Remove the default menu bar for a cleaner look
+  Menu.setApplicationMenu(null);
+
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 
-  // Open DevTools in development (remove for production)
-  mainWindow.webContents.openDevTools();
+  // Open DevTools only in development
+  if (process.argv.includes("--dev")) {
+    mainWindow.webContents.openDevTools();
+  }
 }
 
 // Handle file selection dialog
@@ -84,14 +90,23 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  stopBackend();
   if (process.platform !== "darwin") {
+    stopBackend();
     app.quit();
   }
 });
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
+    // On macOS, restart the backend if it was stopped
+    if (!backendProcess) {
+      startBackend();
+    }
     createWindow();
   }
+});
+
+// Ensure backend is stopped when the app is actually quitting
+app.on("before-quit", () => {
+  stopBackend();
 });

@@ -325,13 +325,7 @@ typeMovie.addEventListener("click", () => {
   showScreen("upload");
 });
 
-typeEpisode.addEventListener("click", () => {
-  alert("Single episode torrent creation is not yet implemented.");
-});
-
-typeSeason.addEventListener("click", () => {
-  alert("Season pack torrent creation is not yet implemented.");
-});
+// Episode and Season buttons are disabled in HTML with "Coming Soon" badges
 
 typeBack.addEventListener("click", () => {
   showScreen("menu");
@@ -644,6 +638,24 @@ function showTorrentPreview(preview) {
 
   // Show the NFO content
   previewNfoContent.textContent = preview.nfo_content;
+
+  // Show warnings if any
+  const existingWarnings = document.getElementById("preview-warnings");
+  if (existingWarnings) existingWarnings.remove();
+
+  if (preview.warnings && preview.warnings.length > 0) {
+    const warningDiv = document.createElement("div");
+    warningDiv.id = "preview-warnings";
+    warningDiv.className = "preview-warnings";
+    warningDiv.innerHTML = preview.warnings
+      .map((w) => `<div class="preview-warning-item">${w}</div>`)
+      .join("");
+    // Insert before the NFO section
+    const previewContent = document.querySelector(".preview-content");
+    if (previewContent) {
+      previewContent.insertBefore(warningDiv, previewContent.firstChild);
+    }
+  }
 }
 
 function closeTorrentPreview() {
