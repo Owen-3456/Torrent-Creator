@@ -5,8 +5,16 @@ const { spawn } = require("child_process");
 let mainWindow;
 let backendProcess;
 
-// Use python3 on non-Windows platforms, python on Windows
-const pythonCommand = process.platform === "win32" ? "python" : "python3";
+// Use the venv Python so packages are available without manual activation
+function getVenvPython() {
+  const venvDir = path.join(__dirname, "../../venv");
+  if (process.platform === "win32") {
+    return path.join(venvDir, "Scripts", "python.exe");
+  }
+  return path.join(venvDir, "bin", "python3");
+}
+
+const pythonCommand = getVenvPython();
 
 function startBackend() {
   // Start the backend server as a child process
