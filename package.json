@@ -11,6 +11,6 @@
   "author": "Kerbo",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^40.6.0"
   }
 }
