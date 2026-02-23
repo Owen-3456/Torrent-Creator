@@ -427,12 +427,17 @@ main {
 }
 
 #torrent-tree,
-#episode-torrent-tree {
+#episode-torrent-tree,
+#season-torrent-tree {
   font-family: inherit;
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin: 0;
   line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+  word-wrap: break-word;
+  max-width: 100%;
 }
 
 /* ============================================

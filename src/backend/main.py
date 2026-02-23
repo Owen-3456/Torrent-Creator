@@ -463,6 +463,10 @@ def get_torrent_details(folder_req: FolderRequest):
             detail=f"Folder not found: {folder_path}"
         )
 
+    # Find all video files to determine if this is a season pack
+    all_video_files = find_all_video_files(folder_path)
+    video_file_count = len(all_video_files)
+    
     video_file, video_ext = find_video_file(folder_path)
     video_file_found = video_file is not None
     files = os.listdir(folder_path)
@@ -480,15 +484,20 @@ def get_torrent_details(folder_req: FolderRequest):
         if os.path.exists(video_file_path):
             file_metadata = get_file_metadata(video_file_path)
 
-    parsed_type = parsed.get("type", "")
-    if parsed_type == "movie":
-        media_type = "movie"
-    elif "season" in parsed and "episode" not in parsed:
+    # Determine media type
+    # If multiple video files exist, it's a season pack
+    if video_file_count > 1:
         media_type = "season"
-    elif "episode" in parsed:
-        media_type = "episode"
     else:
-        media_type = "unknown"
+        parsed_type = parsed.get("type", "")
+        if parsed_type == "movie":
+            media_type = "movie"
+        elif "season" in parsed and "episode" not in parsed:
+            media_type = "season"
+        elif "episode" in parsed:
+            media_type = "episode"
+        else:
+            media_type = "unknown"
 
     return {
         "success": True,

@@ -500,7 +500,12 @@ episodeUploadBack.addEventListener("click", () => {
 // ============================================
 // Season Upload Screen Event Handlers
 // ============================================
+let seasonUploadInProgress = false;
+
 seasonUploadBox.addEventListener("click", async () => {
+  if (seasonUploadInProgress) {
+    return; // Prevent multiple uploads at once
+  }
   const folderPath = await window.api.selectFolder();
   if (folderPath) {
     handleSeasonFolderUpload(folderPath);
@@ -508,12 +513,19 @@ seasonUploadBox.addEventListener("click", async () => {
 });
 
 seasonUploadBack.addEventListener("click", () => {
+  if (seasonUploadInProgress) {
+    if (!confirm("Season pack is still being processed. Go back anyway?")) {
+      return;
+    }
+  }
+  seasonUploadInProgress = false;
   showScreen("select-type");
 });
 
 async function handleSeasonFolderUpload(folderPath) {
-  seasonUploadStatus.textContent = "Processing folder...";
-  seasonUploadStatus.style.color = "var(--accent-primary)";
+  seasonUploadInProgress = true;
+  seasonUploadStatus.textContent = "Processing folder (this may take a moment for large files)...";
+  seasonUploadStatus.style.color = "var(--text-secondary)";
 
   try {
     const response = await window.api.fetch("/parse-season", {
@@ -525,14 +537,18 @@ async function handleSeasonFolderUpload(folderPath) {
       seasonUploadStatus.textContent = `Found ${response.episode_count} episode(s)!`;
       seasonUploadStatus.style.color = "var(--success)";
       currentTorrentFolder = response.target_folder;
+      seasonUploadInProgress = false;
       showSeasonDetails(response);
     } else {
       seasonUploadStatus.textContent = "Error: " + (response.error || "Failed to process folder.");
       seasonUploadStatus.style.color = "var(--error)";
+      seasonUploadInProgress = false;
     }
   } catch (error) {
+    console.error("Season folder upload error:", error);
     seasonUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the folder.");
     seasonUploadStatus.style.color = "var(--error)";
+    seasonUploadInProgress = false;
   }
 }
 
