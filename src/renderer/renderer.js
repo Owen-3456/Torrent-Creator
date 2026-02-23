@@ -2078,6 +2078,15 @@ settingsSave.addEventListener("click", async () => {
 
 // Export settings
 settingsExport.addEventListener("click", async () => {
+  // Warn user about sensitive data
+  const confirmed = confirm(
+    "WARNING: The exported settings file contains your API keys and should be kept secure.\n\n" +
+    "Do not share this file publicly or commit it to version control.\n\n" +
+    "Continue with export?"
+  );
+  
+  if (!confirmed) return;
+
   try {
     const config = {
       api_keys: {
