@@ -48,6 +48,34 @@ const listBack = document.getElementById("list-back");
 // Corner icons
 const githubIcon = document.getElementById("github-icon");
 
+// Metadata modal
+const metadataModal = document.getElementById("metadata-modal");
+const metadataSearchInput = document.getElementById("metadata-search-input");
+const metadataSearchBtn = document.getElementById("metadata-search-btn");
+const metadataSearchResults = document.getElementById("metadata-search-results");
+const metadataEpisodePicker = document.getElementById("metadata-episode-picker");
+const metadataSeasonSelect = document.getElementById("metadata-season-select");
+const metadataEpisodeSelect = document.getElementById("metadata-episode-select");
+const metadataClose = document.getElementById("metadata-close");
+const metadataCancel = document.getElementById("metadata-cancel");
+const metadataApply = document.getElementById("metadata-apply");
+const movieMetadataBtn = document.getElementById("movie-metadata-btn");
+const episodeMetadataBtn = document.getElementById("episode-metadata-btn");
+const seasonMetadataBtn = document.getElementById("season-metadata-btn");
+
+// Conflict modal
+const conflictModal = document.getElementById("conflict-modal");
+const conflictExistingName = document.getElementById("conflict-existing-name");
+const conflictExistingSize = document.getElementById("conflict-existing-size");
+const conflictExistingFiles = document.getElementById("conflict-existing-files");
+const conflictExistingCreated = document.getElementById("conflict-existing-created");
+const conflictNewName = document.getElementById("conflict-new-name");
+const conflictNewSize = document.getElementById("conflict-new-size");
+const conflictNewFiles = document.getElementById("conflict-new-files");
+const conflictOverwrite = document.getElementById("conflict-overwrite");
+const conflictOpen = document.getElementById("conflict-open");
+const conflictCancel = document.getElementById("conflict-cancel");
+
 // Settings screen
 const settingsScreen = document.getElementById("settings");
 const settingsClose = document.getElementById("settings-close");
@@ -55,6 +83,7 @@ const settingsBack = document.getElementById("settings-back");
 const settingsSave = document.getElementById("settings-save");
 const settingsExport = document.getElementById("settings-export");
 const settingsImport = document.getElementById("settings-import");
+const settingsUnsavedIndicator = document.getElementById("settings-unsaved-indicator");
 const tabBtns = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
 
@@ -73,6 +102,25 @@ const settingNfoNotes = document.getElementById("setting-nfo-notes");
 const settingNfoNotesText = document.getElementById("setting-nfo-notes-text");
 const settingAsciiArt = document.getElementById("setting-ascii-art");
 const tmdbLink = document.getElementById("tmdb-link");
+
+// Old TMDB inline search elements (now replaced with metadata modal) - COMMENTED OUT
+/*
+const tmdbSearchInput = document.getElementById("tmdb-search-input");
+const tmdbSearchBtn = document.getElementById("tmdb-search-btn");
+const tmdbSearchResults = document.getElementById("tmdb-search-results");
+const tmdbTvSearchInput = document.getElementById("tmdb-tv-search-input");
+const tmdbTvSearchBtn = document.getElementById("tmdb-tv-search-btn");
+const tmdbTvSearchResults = document.getElementById("tmdb-tv-search-results");
+const tmdbEpisodePicker = document.getElementById("tmdb-episode-picker");
+const tmdbSeasonSelect = document.getElementById("tmdb-season-select");
+const tmdbEpisodeSelect = document.getElementById("tmdb-episode-select");
+const tmdbSeasonSearchInput = document.getElementById("tmdb-season-search-input");
+const tmdbSeasonSearchBtn = document.getElementById("tmdb-season-search-btn");
+const tmdbSeasonSearchResults = document.getElementById("tmdb-season-search-results");
+const tmdbSeasonPicker = document.getElementById("tmdb-season-picker");
+const tmdbSeasonPackSelect = document.getElementById("tmdb-season-pack-select");
+*/
+
 const tvdbLink = document.getElementById("tvdb-link");
 
 // Tracker settings elements
@@ -155,21 +203,6 @@ const seasonBitDepth = document.getElementById("season-bit-depth");
 const seasonHdrFormat = document.getElementById("season-hdr-format");
 const seasonAudioChannels = document.getElementById("season-audio-channels");
 const seasonDetailsBack = document.getElementById("season-details-back");
-
-// TMDB TV Search elements (episode screen)
-const tmdbTvSearchInput = document.getElementById("tmdb-tv-search-input");
-const tmdbTvSearchBtn = document.getElementById("tmdb-tv-search-btn");
-const tmdbTvSearchResults = document.getElementById("tmdb-tv-search-results");
-const tmdbEpisodePicker = document.getElementById("tmdb-episode-picker");
-const tmdbSeasonSelect = document.getElementById("tmdb-season-select");
-const tmdbEpisodeSelect = document.getElementById("tmdb-episode-select");
-
-// TMDB TV Search elements (season screen)
-const tmdbSeasonSearchInput = document.getElementById("tmdb-season-search-input");
-const tmdbSeasonSearchBtn = document.getElementById("tmdb-season-search-btn");
-const tmdbSeasonSearchResults = document.getElementById("tmdb-season-search-results");
-const tmdbSeasonPicker = document.getElementById("tmdb-season-picker");
-const tmdbSeasonPackSelect = document.getElementById("tmdb-season-pack-select");
 
 // Track selected TV show for episode picker
 let selectedTvShowId = null;
@@ -524,6 +557,39 @@ seasonUploadBack.addEventListener("click", () => {
 
 async function handleSeasonFolderUpload(folderPath) {
   seasonUploadInProgress = true;
+  seasonUploadBox.style.display = "none";
+  seasonUploadStatus.textContent = "Checking for conflicts...";
+  seasonUploadStatus.style.color = "var(--text-secondary)";
+
+  try {
+    // Check for conflicts first
+    const conflictCheck = await window.api.fetch("/check-season-conflict", {
+      method: "POST",
+      body: JSON.stringify({ folder_path: folderPath }),
+    });
+
+    if (conflictCheck.conflict) {
+      seasonUploadInProgress = false;
+      seasonUploadBox.style.display = "flex";
+      // Show conflict modal
+      showConflictModal(conflictCheck, folderPath, "season");
+      return;
+    }
+
+    // No conflict, proceed with upload
+    await processSeasonUpload(folderPath);
+  } catch (error) {
+    console.error("Season folder upload error:", error);
+    seasonUploadBox.style.display = "flex";
+    seasonUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the folder.");
+    seasonUploadStatus.style.color = "var(--error)";
+    seasonUploadInProgress = false;
+  }
+}
+
+async function processSeasonUpload(folderPath) {
+  seasonUploadInProgress = true;
+  seasonUploadBox.style.display = "none";
   seasonUploadStatus.textContent = "Processing folder (this may take a moment for large files)...";
   seasonUploadStatus.style.color = "var(--text-secondary)";
 
@@ -540,12 +606,14 @@ async function handleSeasonFolderUpload(folderPath) {
       seasonUploadInProgress = false;
       showSeasonDetails(response);
     } else {
+      seasonUploadBox.style.display = "flex";
       seasonUploadStatus.textContent = "Error: " + (response.error || "Failed to process folder.");
       seasonUploadStatus.style.color = "var(--error)";
       seasonUploadInProgress = false;
     }
   } catch (error) {
     console.error("Season folder upload error:", error);
+    seasonUploadBox.style.display = "flex";
     seasonUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the folder.");
     seasonUploadStatus.style.color = "var(--error)";
     seasonUploadInProgress = false;
@@ -553,8 +621,37 @@ async function handleSeasonFolderUpload(folderPath) {
 }
 
 async function handleEpisodeFileUpload(filepath) {
+  episodeUploadBox.style.display = "none";
+  episodeUploadStatus.textContent = "Checking for conflicts...";
+  episodeUploadStatus.style.color = "var(--text-secondary)";
+
+  try {
+    // Check for conflicts first
+    const conflictCheck = await window.api.fetch("/check-conflict", {
+      method: "POST",
+      body: JSON.stringify({ filepath: filepath }),
+    });
+
+    if (conflictCheck.conflict) {
+      // Show conflict modal
+      episodeUploadBox.style.display = "flex";
+      showConflictModal(conflictCheck, filepath, "episode");
+      return;
+    }
+
+    // No conflict, proceed with upload
+    await processEpisodeUpload(filepath);
+  } catch (error) {
+    episodeUploadBox.style.display = "flex";
+    episodeUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the file.");
+    episodeUploadStatus.style.color = "var(--error)";
+  }
+}
+
+async function processEpisodeUpload(filepath) {
+  episodeUploadBox.style.display = "none";
   episodeUploadStatus.textContent = "Processing file...";
-  episodeUploadStatus.style.color = "var(--accent-primary)";
+  episodeUploadStatus.style.color = "var(--text-secondary)";
 
   try {
     const response = await window.api.fetch("/parse", {
@@ -568,18 +665,48 @@ async function handleEpisodeFileUpload(filepath) {
       currentTorrentFolder = response.target_folder;
       showEpisodeDetails(response);
     } else {
+      episodeUploadBox.style.display = "flex";
       episodeUploadStatus.textContent = "Error: " + (response.error || "Failed to process file.");
       episodeUploadStatus.style.color = "var(--error)";
     }
   } catch (error) {
+    episodeUploadBox.style.display = "flex";
     episodeUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the file.");
     episodeUploadStatus.style.color = "var(--error)";
   }
 }
 
 async function handleFileUpload(filepath) {
+  uploadBox.style.display = "none";
+  movieUploadStatus.textContent = "Checking for conflicts...";
+  movieUploadStatus.style.color = "var(--text-secondary)";
+
+  try {
+    // Check for conflicts first
+    const conflictCheck = await window.api.fetch("/check-conflict", {
+      method: "POST",
+      body: JSON.stringify({ filepath: filepath }),
+    });
+
+    if (conflictCheck.conflict) {
+      // Show conflict modal
+      uploadBox.style.display = "flex";
+      showConflictModal(conflictCheck, filepath, "movie");
+      return;
+    }
+
+    // No conflict, proceed with upload
+    await processFileUpload(filepath);
+  } catch (error) {
+    uploadBox.style.display = "flex";
+    showError(error.message || "An error occurred while processing the file.");
+  }
+}
+
+async function processFileUpload(filepath) {
+  uploadBox.style.display = "none";
   movieUploadStatus.textContent = "Processing file...";
-  movieUploadStatus.style.color = "var(--accent-primary)";
+  movieUploadStatus.style.color = "var(--text-secondary)";
 
   try {
     const response = await window.api.fetch("/parse", {
@@ -593,9 +720,11 @@ async function handleFileUpload(filepath) {
       currentTorrentFolder = response.target_folder;
       showMovieDetails(response);
     } else {
+      uploadBox.style.display = "flex";
       showError(response.error || "Failed to process file.");
     }
   } catch (error) {
+    uploadBox.style.display = "flex";
     showError(error.message || "An error occurred while processing the file.");
   }
 }
@@ -794,17 +923,11 @@ function showMovieDetails(data) {
   // Inject revert buttons into form fields
   injectRevertButtons();
 
-  // Snapshot defaults before TMDB overwrites (will be re-snapshotted after TMDB)
+  // Snapshot defaults
   snapshotFieldDefaults();
 
-  // Pre-fill TMDB search with movie name and clear previous results
-  tmdbSearchInput.value = parsed.title || "";
-  tmdbSearchResults.innerHTML = "";
-
-  // Auto-select first TMDB result if we have a title
-  if (parsed.title) {
-    autoSelectFirstTmdbResult(parsed.title);
-  }
+  // Note: Metadata lookup now uses the modal popup (metadata-modal)
+  // Old inline TMDB search has been removed
 }
 
 // Collect form data into an object (used by preview and create)
@@ -916,17 +1039,8 @@ function showEpisodeDetails(data) {
   injectRevertButtons();
   snapshotFieldDefaults();
 
-  // Reset TMDB TV search state
-  tmdbTvSearchInput.value = parsed.title || "";
-  tmdbTvSearchResults.innerHTML = "";
-  tmdbEpisodePicker.style.display = "none";
-  selectedTvShowId = null;
-  selectedTvShowData = null;
-
-  // Auto-search if we have a title
-  if (parsed.title) {
-    autoSelectFirstTvResult(parsed.title);
-  }
+  // Note: Metadata lookup now uses the modal popup (metadata-modal)
+  // Old inline TMDB search has been removed
 }
 
 function collectEpisodeFormData() {
@@ -986,6 +1100,7 @@ episodeDetailsForm.addEventListener("submit", async (e) => {
   }
 });
 
+/* OLD TMDB TV SEARCH (EPISODE) - COMMENTED OUT - NOW USING METADATA MODAL
 // ============================================
 // TMDB TV Search
 // ============================================
@@ -1217,6 +1332,7 @@ async function autoSelectFirstTvResult(query) {
     console.error("Failed to auto-select TV result:", error);
   }
 }
+END OF OLD TMDB TV SEARCH (EPISODE) */
 
 // ============================================
 // Season Pack Details
@@ -1265,17 +1381,8 @@ function showSeasonDetails(data) {
   injectRevertButtons();
   snapshotFieldDefaults();
 
-  // Reset TMDB season search state
-  tmdbSeasonSearchInput.value = parsed.title || "";
-  tmdbSeasonSearchResults.innerHTML = "";
-  tmdbSeasonPicker.style.display = "none";
-  selectedSeasonShowId = null;
-  selectedSeasonShowData = null;
-
-  // Auto-search if we have a title
-  if (parsed.title) {
-    autoSelectFirstSeasonTvResult(parsed.title);
-  }
+  // Note: Metadata lookup now uses the modal popup (metadata-modal)
+  // Old inline TMDB search has been removed
 }
 
 seasonDetailsBack.addEventListener("click", () => {
@@ -1336,6 +1443,7 @@ seasonDetailsForm.addEventListener("submit", async (e) => {
   }
 });
 
+/* OLD TMDB TV SEARCH (SEASON PACK) - COMMENTED OUT - NOW USING METADATA MODAL
 // ============================================
 // TMDB TV Search (Season Pack)
 // ============================================
@@ -1502,6 +1610,7 @@ async function autoSelectFirstSeasonTvResult(query) {
     console.error("Failed to auto-select TV result:", error);
   }
 }
+END OF OLD TMDB TV SEARCH (SEASON PACK) */
 
 // ============================================
 // Torrent Preview Screen
@@ -1624,6 +1733,7 @@ successDone.addEventListener("click", () => {
   showScreen("menu");
 });
 
+/* OLD TMDB MOVIE SEARCH - COMMENTED OUT - NOW USING METADATA MODAL
 // ============================================
 // TMDB Search
 // ============================================
@@ -1775,6 +1885,7 @@ function fillMovieDetails(movie) {
   // Re-snapshot defaults after TMDB data merges in
   snapshotFieldDefaults();
 }
+END OF OLD TMDB MOVIE SEARCH */
 
 // ============================================
 // Backend Connection Check
@@ -1831,6 +1942,7 @@ let originalAsciiArt = null;
 function openSettings() {
   settingsScreen.style.display = "flex";
   settingsModified = false;
+  settingsUnsavedIndicator.style.display = "none";
   loadSettings();
 }
 
@@ -1842,11 +1954,13 @@ function closeSettings(force = false) {
   }
   settingsScreen.style.display = "none";
   settingsModified = false;
+  settingsUnsavedIndicator.style.display = "none";
 }
 
 // Mark settings as modified when any field changes
 function markSettingsModified() {
   settingsModified = true;
+  settingsUnsavedIndicator.style.display = "inline-block";
 }
 
 settingsClose.addEventListener("click", () => closeSettings(false));
@@ -2083,6 +2197,7 @@ settingsSave.addEventListener("click", async () => {
 
     if (configResponse.success) {
       settingsModified = false;
+      settingsUnsavedIndicator.style.display = "none";
       originalConfig = config;
       alert("Settings saved successfully!");
     }
@@ -2310,6 +2425,553 @@ function updateRevertButton(fieldId) {
 
 function updateAllRevertButtons() {
   revertableFieldIds.forEach((id) => updateRevertButton(id));
+}
+
+// ============================================
+// Conflict Resolution Modal
+// ============================================
+let currentConflictData = null;
+let currentConflictPath = null;
+let currentConflictType = null;
+
+function showConflictModal(conflictData, path, type) {
+  currentConflictData = conflictData;
+  currentConflictPath = path;
+  currentConflictType = type;
+
+  // Populate existing torrent info
+  conflictExistingName.textContent = conflictData.existing.name;
+  conflictExistingSize.textContent = conflictData.existing.size;
+  conflictExistingFiles.textContent = `${conflictData.existing.file_count} file(s)`;
+  conflictExistingCreated.textContent = conflictData.existing.created;
+
+  // Populate new torrent info
+  conflictNewName.textContent = conflictData.new.name;
+  conflictNewSize.textContent = conflictData.new.size;
+  conflictNewFiles.textContent = `${conflictData.new.file_count} file(s)`;
+
+  // Show modal
+  conflictModal.style.display = "flex";
+}
+
+function hideConflictModal() {
+  conflictModal.style.display = "none";
+  currentConflictData = null;
+  currentConflictPath = null;
+  currentConflictType = null;
+}
+
+// Delete & Overwrite button
+conflictOverwrite.addEventListener("click", async () => {
+  if (!currentConflictData || !currentConflictPath) return;
+
+  // Save the data before hiding modal (which clears the variables)
+  const conflictData = currentConflictData;
+  const conflictPath = currentConflictPath;
+  const conflictType = currentConflictType;
+
+  hideConflictModal();
+
+  // Show deleting status
+  if (conflictType === "movie") {
+    movieUploadStatus.textContent = "Deleting existing torrent...";
+    movieUploadStatus.style.color = "var(--text-secondary)";
+  } else if (conflictType === "episode") {
+    episodeUploadStatus.textContent = "Deleting existing torrent...";
+    episodeUploadStatus.style.color = "var(--text-secondary)";
+  } else if (conflictType === "season") {
+    seasonUploadStatus.textContent = "Deleting existing torrent...";
+    seasonUploadStatus.style.color = "var(--text-secondary)";
+  }
+
+  // Delete the existing torrent first
+  try {
+    await window.api.fetch("/torrent", {
+      method: "DELETE",
+      body: JSON.stringify({ folder_path: conflictData.existing.path }),
+    });
+
+    // Wait a moment for filesystem to sync
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Now proceed with the upload
+    if (conflictType === "movie") {
+      await processFileUpload(conflictPath);
+    } else if (conflictType === "episode") {
+      await processEpisodeUpload(conflictPath);
+    } else if (conflictType === "season") {
+      await processSeasonUpload(conflictPath);
+    }
+  } catch (error) {
+    const errorMsg = "Failed to delete existing torrent: " + error.message;
+    alert(errorMsg);
+    
+    // Update status with error
+    if (conflictType === "movie") {
+      movieUploadStatus.textContent = "Error: " + errorMsg;
+      movieUploadStatus.style.color = "var(--error)";
+    } else if (conflictType === "episode") {
+      episodeUploadStatus.textContent = "Error: " + errorMsg;
+      episodeUploadStatus.style.color = "var(--error)";
+    } else if (conflictType === "season") {
+      seasonUploadStatus.textContent = "Error: " + errorMsg;
+      seasonUploadStatus.style.color = "var(--error)";
+    }
+  }
+});
+
+// Open Existing button
+conflictOpen.addEventListener("click", async () => {
+  if (!currentConflictData) return;
+
+  hideConflictModal();
+
+  // Load the existing torrent
+  await loadTorrentDetails(currentConflictData.existing.path);
+});
+
+// Cancel button
+conflictCancel.addEventListener("click", () => {
+  hideConflictModal();
+  
+  // Reset status messages
+  if (currentConflictType === "movie") {
+    movieUploadStatus.textContent = "";
+  } else if (currentConflictType === "episode") {
+    episodeUploadStatus.textContent = "";
+  } else if (currentConflictType === "season") {
+    seasonUploadStatus.textContent = "";
+  }
+});
+
+// ============================================
+// Metadata Lookup Modal
+// ============================================
+let currentMetadataType = null; // "movie", "episode", or "season"
+let selectedMetadataItem = null;
+let selectedShowId = null;
+let selectedShowData = null;
+
+function openMetadataModal(type) {
+  currentMetadataType = type;
+  selectedMetadataItem = null;
+  selectedShowId = null;
+  selectedShowData = null;
+  
+  metadataSearchInput.value = "";
+  metadataSearchResults.innerHTML = "";
+  metadataEpisodePicker.style.display = "none";
+  metadataApply.disabled = true;
+  
+  // Set placeholder based on type
+  if (type === "movie") {
+    metadataSearchInput.placeholder = "Search for a movie...";
+  } else {
+    metadataSearchInput.placeholder = "Search for a TV show...";
+  }
+  
+  metadataModal.style.display = "flex";
+}
+
+function closeMetadataModal() {
+  metadataModal.style.display = "none";
+  currentMetadataType = null;
+  selectedMetadataItem = null;
+  selectedShowId = null;
+  selectedShowData = null;
+}
+
+// Button click handlers
+movieMetadataBtn.addEventListener("click", () => openMetadataModal("movie"));
+episodeMetadataBtn.addEventListener("click", () => openMetadataModal("episode"));
+seasonMetadataBtn.addEventListener("click", () => openMetadataModal("season"));
+
+metadataClose.addEventListener("click", closeMetadataModal);
+metadataCancel.addEventListener("click", closeMetadataModal);
+
+// Search functionality
+async function searchMetadata() {
+  const query = metadataSearchInput.value.trim();
+  if (!query) return;
+  
+  metadataSearchResults.innerHTML = '<p class="search-loading">Searching...</p>';
+  metadataApply.disabled = true;
+  
+  try {
+    let endpoint = currentMetadataType === "movie" ? "/tmdb/search" : "/tmdb/search-tv";
+    const response = await window.api.fetch(endpoint, {
+      method: "POST",
+      body: JSON.stringify({ query: query })
+    });
+    
+    if (response.success && response.results && response.results.length > 0) {
+      displayMetadataResults(response.results);
+    } else {
+      metadataSearchResults.innerHTML = '<p class="search-empty">No results found</p>';
+    }
+  } catch (error) {
+    metadataSearchResults.innerHTML = '<p class="search-error">Search failed: ' + error.message + '</p>';
+  }
+}
+
+function displayMetadataResults(results) {
+  metadataSearchResults.innerHTML = "";
+  
+  results.forEach(result => {
+    const item = document.createElement("div");
+    item.className = "search-result-item";
+    
+    const title = result.title || result.name;
+    const year = result.release_date || result.first_air_date;
+    const yearStr = year ? ` (${year.split("-")[0]})` : "";
+    const overview = result.overview || "No description available";
+    
+    const posterUrl = result.poster_path 
+      ? `https://image.tmdb.org/t/p/w92${result.poster_path}`
+      : null;
+    
+    item.innerHTML = `
+      ${posterUrl 
+        ? `<img src="${posterUrl}" class="search-result-poster" alt="${title}" />`
+        : '<div class="search-result-poster no-poster">No Image</div>'
+      }
+      <div class="search-result-info">
+        <div class="search-result-title">${title}${yearStr}</div>
+        <div class="search-result-overview">${overview}</div>
+      </div>
+    `;
+    
+    item.addEventListener("click", () => selectMetadataResult(result, item));
+    metadataSearchResults.appendChild(item);
+  });
+}
+
+async function selectMetadataResult(result, element) {
+  // Remove previous selection
+  document.querySelectorAll(".search-result-item").forEach(el => {
+    el.classList.remove("selected");
+  });
+  element.classList.add("selected");
+  
+  selectedMetadataItem = result;
+  
+  if (currentMetadataType === "movie") {
+    // For movies, we can apply immediately
+    metadataApply.disabled = false;
+  } else {
+    // For TV shows, need to select season/episode
+    selectedShowId = result.id;
+    await loadShowSeasons(result.id);
+  }
+}
+
+async function loadShowSeasons(showId) {
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${showId}`);
+    
+    if (!response.success || !response.show) {
+      throw new Error("Failed to load show details");
+    }
+    
+    selectedShowData = response.show;
+    
+    // Populate season dropdown
+    metadataSeasonSelect.innerHTML = '<option value="">-- Select Season --</option>';
+    
+    if (response.show.seasons) {
+      response.show.seasons.forEach(season => {
+        if (season.season_number !== null) {
+          const option = document.createElement("option");
+          option.value = season.season_number;
+          option.textContent = `Season ${season.season_number}`;
+          metadataSeasonSelect.appendChild(option);
+        }
+      });
+    }
+    
+    metadataEpisodePicker.style.display = "block";
+    
+    // For season packs, hide the episode dropdown (only need season)
+    if (currentMetadataType === "season") {
+      metadataEpisodeSelect.parentElement.style.display = "none";
+    } else {
+      metadataEpisodeSelect.parentElement.style.display = "";
+      metadataEpisodeSelect.innerHTML = '<option value="">-- Select Episode --</option>';
+    }
+    
+    metadataApply.disabled = true;
+  } catch (error) {
+    console.error("Failed to load show seasons:", error);
+    alert("Failed to load show details: " + error.message);
+  }
+}
+
+async function loadEpisodes(showId, seasonNumber) {
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${showId}/season/${seasonNumber}`);
+    
+    metadataEpisodeSelect.innerHTML = '<option value="">-- Select Episode --</option>';
+    
+    if (response.success && response.episodes) {
+      response.episodes.forEach(episode => {
+        const option = document.createElement("option");
+        option.value = episode.episode_number;
+        option.textContent = `Episode ${episode.episode_number}: ${episode.name || "Untitled"}`;
+        option.dataset.episodeData = JSON.stringify(episode);
+        metadataEpisodeSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error("Failed to load episodes:", error);
+    alert("Failed to load episodes: " + error.message);
+  }
+}
+
+// Season selection handler
+metadataSeasonSelect.addEventListener("change", async () => {
+  const seasonNumber = metadataSeasonSelect.value;
+  
+  if (seasonNumber && selectedShowId) {
+    // For season packs, just selecting a season is enough - don't load episodes
+    if (currentMetadataType === "season") {
+      metadataApply.disabled = false;
+    } else {
+      // For episodes, load the episode list
+      await loadEpisodes(selectedShowId, seasonNumber);
+    }
+  } else {
+    if (currentMetadataType === "episode") {
+      metadataEpisodeSelect.innerHTML = '<option value="">-- Select Episode --</option>';
+    }
+    metadataApply.disabled = true;
+  }
+});
+
+// Episode selection handler
+metadataEpisodeSelect.addEventListener("change", () => {
+  const episodeNumber = metadataEpisodeSelect.value;
+  
+  if (episodeNumber && currentMetadataType === "episode") {
+    metadataApply.disabled = false;
+  } else {
+    metadataApply.disabled = true;
+  }
+});
+
+// Search button and enter key
+metadataSearchBtn.addEventListener("click", searchMetadata);
+metadataSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    searchMetadata();
+  }
+});
+
+// Apply metadata button
+metadataApply.addEventListener("click", async () => {
+  if (!selectedMetadataItem) return;
+  
+  try {
+    if (currentMetadataType === "movie") {
+      await applyMovieMetadata(selectedMetadataItem);
+    } else if (currentMetadataType === "episode") {
+      const seasonNum = metadataSeasonSelect.value;
+      const episodeNum = metadataEpisodeSelect.value;
+      const selectedOption = metadataEpisodeSelect.options[metadataEpisodeSelect.selectedIndex];
+      const episodeData = JSON.parse(selectedOption.dataset.episodeData);
+      await applyEpisodeMetadata(selectedShowData, seasonNum, episodeNum, episodeData);
+    } else if (currentMetadataType === "season") {
+      const seasonNum = metadataSeasonSelect.value;
+      await applySeasonMetadata(selectedShowData, seasonNum);
+    }
+    
+    closeMetadataModal();
+  } catch (error) {
+    alert("Failed to apply metadata: " + error.message);
+  }
+});
+
+async function applyMovieMetadata(movie) {
+  // Fetch full movie details
+  const response = await window.api.fetch(`/tmdb/movie/${movie.id}`);
+  
+  if (!response.success || !response.movie) {
+    throw new Error("Failed to fetch movie details");
+  }
+  
+  const details = response.movie;
+  
+  movieName.value = details.title || movie.title || "";
+  movieYear.value = details.year || "";
+  movieTmdbId.value = details.tmdb_id || movie.id || "";
+  
+  // Convert runtime (in minutes) to HH:MM:SS
+  if (details.runtime) {
+    const hours = Math.floor(details.runtime / 60);
+    const minutes = details.runtime % 60;
+    movieRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+  }
+  
+  // Get IMDB ID if available
+  if (details.imdb_id) {
+    movieImdbId.value = details.imdb_id;
+  }
+  
+  // Set overview
+  if (details.overview) {
+    movieOverview.value = details.overview;
+  }
+  
+  // Set language (if original_language matches our options)
+  if (details.original_language) {
+    const langMap = {
+      "en": "English",
+      "es": "Spanish",
+      "fr": "French",
+      "de": "German",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "zh": "Chinese",
+      "ru": "Russian",
+      "hi": "Hindi",
+      "ar": "Arabic",
+      "nl": "Dutch",
+      "sv": "Swedish",
+      "no": "Norwegian",
+      "da": "Danish",
+      "fi": "Finnish",
+      "pl": "Polish",
+      "tr": "Turkish",
+      "th": "Thai"
+    };
+    const lang = langMap[details.original_language];
+    if (lang) {
+      setSelectValue(movieLanguage, lang);
+    }
+  }
+  
+  snapshotFieldDefaults();
+}
+
+async function applyEpisodeMetadata(show, seasonNum, episodeNum, episodeData) {
+  episodeShowName.value = show.name || "";
+  episodeSeason.value = seasonNum;
+  episodeEpisode.value = episodeNum;
+  episodeTitle.value = episodeData.name || "";
+  episodeTmdbId.value = show.tmdb_id || show.id || "";
+  
+  // Year from show
+  if (show.year) {
+    episodeYear.value = show.year;
+  }
+  
+  // Runtime from episode
+  if (episodeData.runtime) {
+    const hours = Math.floor(episodeData.runtime / 60);
+    const minutes = episodeData.runtime % 60;
+    episodeRuntime.value = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+  }
+  
+  // Overview
+  if (episodeData.overview) {
+    episodeOverview.value = episodeData.overview;
+  }
+  
+  // IMDB ID from show
+  if (show.imdb_id) {
+    episodeImdbId.value = show.imdb_id;
+  }
+  
+  // Language - try spoken_languages first, then original_language
+  if (show.spoken_languages && show.spoken_languages.length > 0) {
+    setSelectValue(episodeLanguage, show.spoken_languages[0]);
+  } else if (show.original_language) {
+    const langMap = {
+      "en": "English",
+      "es": "Spanish",
+      "fr": "French",
+      "de": "German",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "zh": "Chinese",
+      "ru": "Russian",
+      "hi": "Hindi",
+      "ar": "Arabic",
+      "nl": "Dutch",
+      "sv": "Swedish",
+      "no": "Norwegian",
+      "da": "Danish",
+      "fi": "Finnish",
+      "pl": "Polish",
+      "tr": "Turkish",
+      "th": "Thai"
+    };
+    const lang = langMap[show.original_language];
+    if (lang) {
+      setSelectValue(episodeLanguage, lang);
+    }
+  }
+  
+  snapshotFieldDefaults();
+}
+
+async function applySeasonMetadata(show, seasonNum) {
+  seasonShowName.value = show.name || "";
+  seasonNumber.value = seasonNum;
+  seasonTmdbId.value = show.tmdb_id || show.id || "";
+  
+  // Year from show
+  if (show.year) {
+    seasonYear.value = show.year;
+  }
+  
+  // Overview
+  if (show.overview) {
+    seasonOverview.value = show.overview;
+  }
+  
+  // IMDB ID
+  if (show.imdb_id) {
+    seasonImdbId.value = show.imdb_id;
+  }
+  
+  // Language - try spoken_languages first, then original_language
+  if (show.spoken_languages && show.spoken_languages.length > 0) {
+    setSelectValue(seasonLanguage, show.spoken_languages[0]);
+  } else if (show.original_language) {
+    const langMap = {
+      "en": "English",
+      "es": "Spanish",
+      "fr": "French",
+      "de": "German",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "zh": "Chinese",
+      "ru": "Russian",
+      "hi": "Hindi",
+      "ar": "Arabic",
+      "nl": "Dutch",
+      "sv": "Swedish",
+      "no": "Norwegian",
+      "da": "Danish",
+      "fi": "Finnish",
+      "pl": "Polish",
+      "tr": "Turkish",
+      "th": "Thai"
+    };
+    const lang = langMap[show.original_language];
+    if (lang) {
+      setSelectValue(seasonLanguage, lang);
+    }
+  }
+  
+  snapshotFieldDefaults();
 }
 
 
