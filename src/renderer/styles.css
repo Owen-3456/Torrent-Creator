@@ -948,11 +948,21 @@ main {
 /* Settings Footer */
 .settings-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.85rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border-default);
   background: var(--bg-secondary);
+}
+
+.settings-footer-left {
+  display: flex;
+  gap: 0.85rem;
+}
+
+.settings-footer-right {
+  display: flex;
+  gap: 0.85rem;
 }
 
 .settings-footer .menu-btn {

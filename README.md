@@ -1,15 +1,19 @@
 # Torrent Creator
 
-Torrent creation tool that automatically renames files, generates NFOs, and creates .torrent files.
+Minimal desktop application for creating properly formatted movie and TV torrents.
 
-## Status
+## Features
 
-🚧 In early development
+- Movie, single episode, and season pack torrent creation
+- TMDB integration for automatic metadata
+- Configurable naming templates
+- NFO file generation with ASCII art
+- Custom tracker management
+- Settings import/export
+- Clean terminal-inspired UI
 
-## Planned Features
+## Tech Stack
 
-- Automatic movie/TV show detection via TMDB/TVDB
-- Configurable file renaming
-- NFO file generation
-- .torrent file creation with custom trackers
-- Cross-platform (Windows/Linux)
+- Electron (frontend)
+- Python/FastAPI (backend)
+- Monospace minimal design

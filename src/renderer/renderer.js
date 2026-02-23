@@ -17,6 +17,7 @@ const seasonDetails = document.getElementById("season-details");
 // Main Menu buttons
 const menuCreate = document.getElementById("menu-create");
 const menuEdit = document.getElementById("menu-edit");
+const menuSettings = document.getElementById("menu-settings");
 const menuExit = document.getElementById("menu-exit");
 
 // Type selection buttons
@@ -45,16 +46,20 @@ const torrentListContainer = document.getElementById("torrent-list-container");
 const listBack = document.getElementById("list-back");
 
 // Corner icons
-const settingsIcon = document.getElementById("settings-icon");
 const githubIcon = document.getElementById("github-icon");
 
 // Settings screen
 const settingsScreen = document.getElementById("settings");
 const settingsClose = document.getElementById("settings-close");
-const settingsCancel = document.getElementById("settings-cancel");
+const settingsBack = document.getElementById("settings-back");
 const settingsSave = document.getElementById("settings-save");
+const settingsExport = document.getElementById("settings-export");
+const settingsImport = document.getElementById("settings-import");
 const tabBtns = document.querySelectorAll(".tab-btn");
 const tabContents = document.querySelectorAll(".tab-content");
+
+// Track if settings have been modified
+let settingsModified = false;
 
 // Settings form elements
 const settingTmdbKey = document.getElementById("setting-tmdb-key");
@@ -435,6 +440,10 @@ menuCreate.addEventListener("click", () => {
 
 menuEdit.addEventListener("click", () => {
   showScreen("torrent-list");
+});
+
+menuSettings.addEventListener("click", () => {
+  openSettings();
 });
 
 menuExit.addEventListener("click", () => {
@@ -1793,10 +1802,6 @@ async function waitForBackend(maxRetries = 20, intervalMs = 500) {
 // ============================================
 // Corner Icon Handlers
 // ============================================
-settingsIcon.addEventListener("click", () => {
-  openSettings();
-});
-
 githubIcon.addEventListener("click", () => {
   window.api.openExternal("https://github.com/Owen-3456/Torrent-Creator");
 });
@@ -1809,15 +1814,27 @@ let originalAsciiArt = null;
 
 function openSettings() {
   settingsScreen.style.display = "flex";
+  settingsModified = false;
   loadSettings();
 }
 
-function closeSettings() {
+function closeSettings(force = false) {
+  if (!force && settingsModified) {
+    if (!confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+      return;
+    }
+  }
   settingsScreen.style.display = "none";
+  settingsModified = false;
 }
 
-settingsClose.addEventListener("click", closeSettings);
-settingsCancel.addEventListener("click", closeSettings);
+// Mark settings as modified when any field changes
+function markSettingsModified() {
+  settingsModified = true;
+}
+
+settingsClose.addEventListener("click", () => closeSettings(false));
+settingsBack.addEventListener("click", () => closeSettings(false));
 
 // Tab switching
 tabBtns.forEach((btn) => {
@@ -1927,10 +1944,30 @@ function updateTemplatePreviews() {
 }
 
 // Update previews when templates change
-settingTemplateMovie.addEventListener("input", updateTemplatePreviews);
-settingTemplateEpisode.addEventListener("input", updateTemplatePreviews);
-settingTemplateSeason.addEventListener("input", updateTemplatePreviews);
-settingReleaseGroup.addEventListener("input", updateTemplatePreviews);
+settingTemplateMovie.addEventListener("input", () => {
+  updateTemplatePreviews();
+  markSettingsModified();
+});
+settingTemplateEpisode.addEventListener("input", () => {
+  updateTemplatePreviews();
+  markSettingsModified();
+});
+settingTemplateSeason.addEventListener("input", () => {
+  updateTemplatePreviews();
+  markSettingsModified();
+});
+settingReleaseGroup.addEventListener("input", () => {
+  updateTemplatePreviews();
+  markSettingsModified();
+});
+
+// Mark settings as modified on any field change
+settingTmdbKey.addEventListener("input", markSettingsModified);
+settingTvdbKey.addEventListener("input", markSettingsModified);
+settingOutputDir.addEventListener("input", markSettingsModified);
+settingNfoNotes.addEventListener("change", markSettingsModified);
+settingNfoNotesText.addEventListener("input", markSettingsModified);
+settingAsciiArt.addEventListener("input", markSettingsModified);
 
 // ============================================
 // Tracker List Management
@@ -1959,6 +1996,7 @@ function renderTrackerList() {
     item.querySelector(".tracker-remove-btn").addEventListener("click", () => {
       settingTrackers.splice(index, 1);
       renderTrackerList();
+      markSettingsModified();
     });
 
     trackerList.appendChild(item);
@@ -1978,6 +2016,7 @@ function addTracker() {
   settingTrackers.push(url);
   trackerNewInput.value = "";
   renderTrackerList();
+  markSettingsModified();
 }
 
 trackerAddBtn.addEventListener("click", addTracker);
@@ -2023,15 +2062,107 @@ settingsSave.addEventListener("click", async () => {
         method: "POST",
         body: JSON.stringify({ ascii_art: asciiArt }),
       });
+      originalAsciiArt = asciiArt;
     }
 
     if (configResponse.success) {
-      closeSettings();
+      settingsModified = false;
+      originalConfig = config;
+      alert("Settings saved successfully!");
     }
   } catch (error) {
     console.error("Failed to save settings:", error);
     alert("Failed to save settings: " + error.message);
   }
+});
+
+// Export settings
+settingsExport.addEventListener("click", async () => {
+  try {
+    const config = {
+      api_keys: {
+        tmdb: settingTmdbKey.value,
+        tvdb: settingTvdbKey.value,
+      },
+      naming_templates: {
+        movie: settingTemplateMovie.value,
+        episode: settingTemplateEpisode.value,
+        season: settingTemplateSeason.value,
+      },
+      trackers: [...settingTrackers],
+      output_directory: settingOutputDir.value,
+      release_group: settingReleaseGroup.value,
+      nfo: {
+        include_notes: settingNfoNotes.checked,
+        notes_template: settingNfoNotesText.value,
+      },
+      ascii_art: settingAsciiArt.value,
+    };
+
+    // Create a JSON blob and download it
+    const dataStr = JSON.stringify(config, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `torrent-creator-settings-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Failed to export settings:", error);
+    alert("Failed to export settings: " + error.message);
+  }
+});
+
+// Import settings
+settingsImport.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json,.json";
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const config = JSON.parse(text);
+
+      // Populate form fields with imported config
+      if (config.api_keys) {
+        settingTmdbKey.value = config.api_keys.tmdb || "";
+        settingTvdbKey.value = config.api_keys.tvdb || "";
+      }
+      if (config.naming_templates) {
+        settingTemplateMovie.value = config.naming_templates.movie || "";
+        settingTemplateEpisode.value = config.naming_templates.episode || "";
+        settingTemplateSeason.value = config.naming_templates.season || "";
+      }
+      if (config.trackers) {
+        settingTrackers = [...config.trackers];
+        renderTrackerList();
+      }
+      if (config.output_directory) {
+        settingOutputDir.value = config.output_directory;
+      }
+      if (config.release_group) {
+        settingReleaseGroup.value = config.release_group;
+      }
+      if (config.nfo) {
+        settingNfoNotes.checked = config.nfo.include_notes !== false;
+        settingNfoNotesText.value = config.nfo.notes_template || "";
+      }
+      if (config.ascii_art) {
+        settingAsciiArt.value = config.ascii_art;
+      }
+
+      markSettingsModified();
+      alert("Settings imported successfully! Don't forget to save.");
+    } catch (error) {
+      console.error("Failed to import settings:", error);
+      alert("Failed to import settings: " + error.message);
+    }
+  };
+  input.click();
 });
 
 // ============================================
