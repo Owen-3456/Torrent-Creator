@@ -1363,6 +1363,26 @@ async function checkBackendConnection() {
   }
 }
 
+// Wait for the backend to be ready before making any API calls
+async function waitForBackend(maxRetries = 20, intervalMs = 500) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const data = await window.api.fetch("/health");
+      if (data.status === "ok") {
+        backendStatus.textContent = "Connected";
+        backendStatus.className = "connected";
+        return true;
+      }
+    } catch {
+      // Backend not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  backendStatus.textContent = "Not running";
+  backendStatus.className = "disconnected";
+  return false;
+}
+
 // ============================================
 // Corner Icon Handlers
 // ============================================
@@ -1611,7 +1631,26 @@ settingsSave.addEventListener("click", async () => {
 // Initialize
 // ============================================
 showScreen("menu");
-checkBackendConnection();
+
+// Wait for the backend to be ready, then load initial config
+(async () => {
+  await waitForBackend();
+  try {
+    const response = await window.api.fetch("/config");
+    if (response.success) {
+      if (response.config.output_directory) {
+        cachedOutputDir = response.config.output_directory;
+      }
+      if (response.config.release_group) {
+        cachedReleaseGroup = response.config.release_group;
+      }
+    }
+  } catch {
+    // Will be loaded when settings are opened
+  }
+})();
+
+// Periodically re-check backend connection
 setInterval(checkBackendConnection, 5000);
 
 // Wire up input validation
@@ -1707,19 +1746,4 @@ function updateAllRevertButtons() {
   revertableFieldIds.forEach((id) => updateRevertButton(id));
 }
 
-// Load config values on startup
-(async () => {
-  try {
-    const response = await window.api.fetch("/config");
-    if (response.success) {
-      if (response.config.output_directory) {
-        cachedOutputDir = response.config.output_directory;
-      }
-      if (response.config.release_group) {
-        cachedReleaseGroup = response.config.release_group;
-      }
-    }
-  } catch {
-    // Backend may not be ready yet; will be loaded when settings are opened
-  }
-})();
+
