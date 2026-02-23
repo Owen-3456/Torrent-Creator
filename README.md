@@ -7,7 +7,6 @@ A desktop application for creating properly formatted movie and TV show torrents
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Node](https://img.shields.io/badge/Node-16+-green.svg)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-Latest-47848f.svg)](https://www.electronjs.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Built for personal use with my specific workflow needs.
 
@@ -197,12 +196,6 @@ See [SETUP.md](SETUP.md) for complete installation instructions.
 
 ---
 
-## Screenshots
-
-*Note: This is a terminal-inspired monospace UI. Clean, functional, no frills.*
-
----
-
 ## Troubleshooting
 
 Common issues and solutions:
@@ -232,22 +225,6 @@ npm start -- --dev
 
 ---
 
-## License
+## Note
 
-MIT License - See [LICENSE](LICENSE) file for details.
-
-**Note:** This is a personal tool designed for private tracker use. You are responsible for following your tracker's rules and copyright laws in your jurisdiction.
-
----
-
-## Disclaimer
-
-Built for **personal use** to organize and share legally acquired media on private trackers. Requires your own TMDB API key. Use responsibly and follow your community's guidelines.
-
----
-
-<div align="center">
-
-**[Setup Guide](SETUP.md)** • **[Report Issue](https://github.com/yourusername/Torrent-Creator/issues)**
-
-</div>
+Built for **personal use** to organize media on private trackers. Requires your own TMDB API key.

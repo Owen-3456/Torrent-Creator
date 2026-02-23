@@ -42,7 +42,7 @@ npm --version
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/Torrent-Creator.git
+# Clone your copy of the repository
 cd Torrent-Creator
 ```
 
@@ -382,10 +382,9 @@ npm start
 
 If you encounter issues not covered here:
 
-1. Check the [GitHub Issues](https://github.com/yourusername/Torrent-Creator/issues)
-2. Review application logs (backend console output)
-3. Run with DevTools enabled to see detailed errors
-4. Make sure all dependencies are up to date
+1. Review application logs (backend console output)
+2. Run with DevTools enabled to see detailed errors
+3. Make sure all dependencies are up to date
 
 **Remember:** This is a personal tool built for specific needs. Some edge cases may not be handled.
 
