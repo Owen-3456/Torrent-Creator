@@ -184,6 +184,28 @@ class EpisodeTorrentRequest(TorrentRequest):
     episode_title: str
 
 
+class SeasonTorrentRequest(BaseModel):
+    folder_path: str
+    show_name: str
+    season: int
+    year: str
+    language: str
+    resolution: str
+    source: str
+    video_codec: str
+    audio_codec: str
+    container: str
+    release_group: str
+    tmdb_id: str
+    imdb_id: str
+    overview: str
+    bit_depth: str
+    hdr_format: str
+    audio_channels: str
+    total_size: str
+    episode_count: int
+
+
 # ============================================
 # Health Check
 # ============================================
@@ -309,6 +331,96 @@ def parse_and_process_file(file_req: FileRequest):
         "media_type": media_type,
         "target_folder": target_folder,
         "nfo_path": nfo_path
+    }
+
+
+# ============================================
+# Season Pack Processing
+# ============================================
+@app.post("/parse-season")
+def parse_season_folder(folder_req: FolderRequest):
+    """
+    Parse a folder of episode files for season pack creation.
+    Finds all video files, extracts metadata from the first, and copies them
+    into a new folder in the output directory.
+    """
+    folder_path = folder_req.folder_path
+
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    # Find all video files in the folder
+    video_files = find_all_video_files(folder_path)
+
+    if not video_files:
+        raise HTTPException(
+            status_code=400,
+            detail="No video files found in the selected folder."
+        )
+
+    # Sort files naturally (by name)
+    video_files.sort()
+
+    # Parse the first file with guessit for show/season metadata
+    parsed = guessit(video_files[0])
+    parsed_dict = serialize_parsed(parsed)
+
+    # Extract metadata from the first file (representative of the season)
+    first_file_path = os.path.join(folder_path, video_files[0])
+    file_metadata = get_file_metadata(first_file_path)
+
+    # Calculate total size of all video files
+    total_bytes = 0
+    file_list = []
+    for vf in video_files:
+        vf_path = os.path.join(folder_path, vf)
+        vf_size = os.path.getsize(vf_path)
+        total_bytes += vf_size
+        file_list.append({"name": vf, "size": format_file_size(vf_size)})
+
+    total_size = format_file_size(total_bytes)
+
+    # Create target folder in output directory
+    config = load_config()
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+    torrents_dir = os.path.expanduser(output_dir)
+    folder_name = os.path.basename(folder_path)
+    target_folder = os.path.join(torrents_dir, folder_name)
+
+    os.makedirs(target_folder, exist_ok=True)
+
+    # Copy all video files to the target folder
+    for vf in video_files:
+        src = os.path.join(folder_path, vf)
+        dst = os.path.join(target_folder, vf)
+        if os.path.abspath(src) != os.path.abspath(dst):
+            if os.path.exists(dst):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"A file named '{vf}' already exists in the target folder. Please remove it first."
+                )
+            shutil.copy2(src, dst)
+
+    # Create initial NFO
+    nfo_path = os.path.join(target_folder, f"{folder_name}.NFO")
+    nfo_content = generate_nfo(parsed, video_files[0], "season")
+    with open(nfo_path, "w") as f:
+        f.write(nfo_content)
+
+    return {
+        "success": True,
+        "folder_name": folder_name,
+        "parsed": parsed_dict,
+        "metadata": file_metadata,
+        "media_type": "season",
+        "target_folder": target_folder,
+        "video_files": file_list,
+        "episode_count": len(video_files),
+        "total_size": total_size,
+        "nfo_path": nfo_path,
     }
 
 
@@ -1094,6 +1206,163 @@ def create_episode_torrent(req: EpisodeTorrentRequest):
 
 
 # ============================================
+# Season Pack Torrent Preview & Create
+# ============================================
+@app.post("/preview-season-torrent")
+async def preview_season_torrent(req: SeasonTorrentRequest):
+    """
+    Generate a preview of what the season pack torrent will contain.
+    Does NOT write anything to disk.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    video_files = find_all_video_files(folder_path)
+    if not video_files:
+        raise HTTPException(status_code=400, detail="No video files found in the torrent folder.")
+
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "season", "{title}.S{season:02}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_season_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_nfo_name = new_base_name + ".NFO"
+    new_torrent_name = new_base_name + ".torrent"
+
+    # Build file list with sizes for NFO
+    file_list_with_sizes = []
+    for vf in video_files:
+        vf_path = os.path.join(folder_path, vf)
+        vf_size = os.path.getsize(vf_path)
+        file_list_with_sizes.append({"name": vf, "size": format_file_size(vf_size)})
+
+    nfo_content = generate_season_nfo_from_details(details, new_base_name, file_list_with_sizes)
+
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+    files = [{"name": f, "type": "video"} for f in video_files]
+    files.append({"name": new_nfo_name, "type": "nfo"})
+
+    warnings = []
+    trackers = config.get("trackers", [])
+    if not trackers:
+        warnings.append("No trackers configured. The torrent will be created without any announce URLs.")
+
+    return {
+        "success": True,
+        "base_name": new_base_name,
+        "torrent_name": new_torrent_name,
+        "output_dir": output_dir,
+        "files": files,
+        "nfo_content": nfo_content,
+        "warnings": warnings,
+    }
+
+
+@app.post("/create-season-torrent")
+def create_season_torrent(req: SeasonTorrentRequest):
+    """
+    Full season pack torrent creation pipeline:
+    1. Rename the folder using the season naming template
+    2. Generate and write the NFO file (with file listing)
+    3. Create a .torrent file from the folder contents
+
+    NOTE: This is a regular def (not async) so FastAPI runs it in a thread pool.
+    torrent.generate() hashes all video files and would block the event loop.
+    """
+    folder_path = req.folder_path
+    if folder_path.startswith("~"):
+        folder_path = os.path.expanduser(folder_path)
+
+    if not os.path.isdir(folder_path):
+        raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
+
+    video_files = find_all_video_files(folder_path)
+    if not video_files:
+        raise HTTPException(status_code=400, detail="No video files found in the torrent folder.")
+
+    config = load_config()
+    template = config.get("naming_templates", {}).get(
+        "season", "{title}.S{season:02}.{quality}.{source}.{codec}-{group}"
+    )
+    details = req.model_dump()
+    new_base_name = apply_season_template(template, details)
+
+    if not new_base_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Naming template produced an empty name. Check your template and fields."
+        )
+
+    new_nfo_name = new_base_name + ".NFO"
+
+    # --- Step 1: Remove old NFO files and write new one ---
+    for f in os.listdir(folder_path):
+        if f.upper().endswith(".NFO"):
+            os.remove(os.path.join(folder_path, f))
+
+    # Build file list with sizes for NFO
+    file_list_with_sizes = []
+    for vf in video_files:
+        vf_path = os.path.join(folder_path, vf)
+        vf_size = os.path.getsize(vf_path)
+        file_list_with_sizes.append({"name": vf, "size": format_file_size(vf_size)})
+
+    nfo_content = generate_season_nfo_from_details(details, new_base_name, file_list_with_sizes)
+    nfo_path = os.path.join(folder_path, new_nfo_name)
+    with open(nfo_path, "w", encoding="utf-8") as fh:
+        fh.write(nfo_content)
+
+    # --- Step 2: Rename the folder ---
+    parent_dir = os.path.dirname(folder_path)
+    new_folder_path = os.path.join(parent_dir, new_base_name)
+
+    if folder_path != new_folder_path:
+        if os.path.exists(new_folder_path):
+            raise HTTPException(
+                status_code=409,
+                detail=f"A folder named '{new_base_name}' already exists."
+            )
+        os.rename(folder_path, new_folder_path)
+
+    # --- Step 3: Create .torrent file ---
+    trackers = config.get("trackers", [])
+
+    torrent = Torrent(
+        path=new_folder_path,
+        trackers=trackers if trackers else None,
+        comment="Created by Torrent Creator",
+    )
+    torrent.generate()
+
+    torrent_filename = new_base_name + ".torrent"
+    torrent_file_path = os.path.join(parent_dir, torrent_filename)
+    torrent.write(torrent_file_path, overwrite=True)
+
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+
+    return {
+        "success": True,
+        "new_folder_path": new_folder_path,
+        "new_base_name": new_base_name,
+        "output_dir": output_dir,
+        "torrent_file": torrent_file_path,
+        "torrent_filename": torrent_filename,
+    }
+
+
+# ============================================
 # File Metadata Extraction
 # ============================================
 def get_file_metadata(filepath: str) -> dict:
@@ -1287,6 +1556,31 @@ def find_video_file(folder_path: str) -> tuple:
     return None, None
 
 
+def find_all_video_files(folder_path: str) -> list:
+    """Find all video files in a folder, sorted by name.
+
+    Returns a list of filenames.
+    """
+    files = []
+    for f in os.listdir(folder_path):
+        ext = os.path.splitext(f)[1].lower()
+        if ext in VIDEO_EXTENSIONS:
+            files.append(f)
+    return sorted(files)
+
+
+def format_file_size(size_bytes: int) -> str:
+    """Format a file size in bytes to a human-readable string."""
+    if size_bytes >= 1024 ** 3:
+        return f"{size_bytes / (1024 ** 3):.2f} GB"
+    elif size_bytes >= 1024 ** 2:
+        return f"{size_bytes / (1024 ** 2):.2f} MB"
+    elif size_bytes >= 1024:
+        return f"{size_bytes / 1024:.2f} KB"
+    else:
+        return f"{size_bytes} B"
+
+
 def serialize_parsed(parsed: dict) -> dict:
     """Convert guessit parsed dict to JSON-serializable format."""
     parsed_dict = {}
@@ -1388,6 +1682,126 @@ def apply_episode_template(template: str, details: dict) -> str:
     result = result.strip(".")
 
     return result
+
+
+def apply_season_template(template: str, details: dict) -> str:
+    """Apply the season pack naming template with the given details.
+
+    Handles format specifiers like {season:02} for zero-padding.
+    """
+    import re
+
+    show_name = details.get("show_name", "Unknown").replace(" ", ".")
+    year = details.get("year", "")
+    quality = details.get("resolution", "")
+    source = details.get("source", "")
+    codec = details.get("video_codec", "")
+    group = details.get("release_group", "")
+    season = details.get("season", 0)
+
+    result = template
+    result = result.replace("{title}", show_name)
+    result = result.replace("{year}", year)
+    result = result.replace("{quality}", quality)
+    result = result.replace("{source}", source)
+    result = result.replace("{codec}", codec)
+    result = result.replace("{group}", group)
+
+    # Handle {season:02} format specifier
+    def replace_formatted(match):
+        field = match.group(1)
+        fmt = match.group(2)
+        if field == "season":
+            val = int(season)
+        else:
+            return match.group(0)
+        try:
+            return format(val, fmt)
+        except (ValueError, TypeError):
+            return str(val)
+
+    result = re.sub(r"\{(season):([^}]+)\}", replace_formatted, result)
+
+    # Plain {season} without format specifier
+    result = result.replace("{season}", str(season))
+
+    # Clean up double dots and trailing dots
+    while ".." in result:
+        result = result.replace("..", ".")
+    result = result.replace(".-", "-")
+    result = result.strip(".")
+
+    return result
+
+
+def generate_season_nfo_from_details(details: dict, folder_name: str, video_files: list) -> str:
+    """Generate NFO file content for a season pack torrent with file listing."""
+    config = load_config()
+    ascii_art = load_ascii_art()
+    nfo_config = config.get("nfo", {})
+
+    lines = [ascii_art, ""]
+
+    lines.extend([
+        f"Show        : {details.get('show_name', 'Unknown')}",
+        f"Season      : {details.get('season', '')}",
+        f"Year        : {details.get('year', '')}",
+        f"Type        : Season Pack",
+        f"Episodes    : {details.get('episode_count', len(video_files))}",
+        f"Folder      : {folder_name}",
+    ])
+
+    if details.get("resolution"):
+        lines.append(f"Resolution  : {details['resolution']}")
+    if details.get("source"):
+        lines.append(f"Source      : {details['source']}")
+    if details.get("video_codec"):
+        lines.append(f"Video Codec : {details['video_codec']}")
+    if details.get("audio_codec"):
+        lines.append(f"Audio Codec : {details['audio_codec']}")
+    if details.get("audio_channels"):
+        lines.append(f"Audio       : {details['audio_channels']}")
+    if details.get("bit_depth"):
+        lines.append(f"Bit Depth   : {details['bit_depth']}")
+    if details.get("hdr_format"):
+        lines.append(f"HDR Format  : {details['hdr_format']}")
+    if details.get("language"):
+        lines.append(f"Language    : {details['language']}")
+    if details.get("total_size"):
+        lines.append(f"Total Size  : {details['total_size']}")
+    if details.get("release_group"):
+        lines.append(f"Group       : {details['release_group']}")
+    if details.get("imdb_id"):
+        lines.append(f"IMDb        : https://www.imdb.com/title/{details['imdb_id']}/")
+    if details.get("tmdb_id"):
+        lines.append(f"TMDB        : https://www.themoviedb.org/tv/{details['tmdb_id']}")
+
+    if details.get("overview"):
+        lines.append("")
+        lines.append("Plot:")
+        lines.append(details["overview"])
+
+    # File listing
+    lines.append("")
+    lines.append("-" * 50)
+    lines.append("Files:")
+    lines.append("")
+    for vf in video_files:
+        if isinstance(vf, dict):
+            lines.append(f"  {vf['name']}  ({vf.get('size', '')})")
+        else:
+            lines.append(f"  {vf}")
+
+    lines.append("")
+    lines.append("=" * 50)
+
+    if nfo_config.get("include_notes", True):
+        notes = nfo_config.get("notes_template", "Enjoy and seed!")
+        if notes:
+            lines.append("")
+            lines.append(notes)
+
+    return "\n".join(lines)
 
 
 def generate_episode_nfo_from_details(details: dict, filename: str) -> str:

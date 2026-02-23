@@ -27,7 +27,7 @@
           <h2>Select Torrent Type</h2>
           <button class="menu-btn" id="type-movie">Movie</button>
           <button class="menu-btn" id="type-episode">Single Episode</button>
-          <button class="menu-btn disabled-btn" id="type-season" disabled>Season Pack <span class="coming-soon-badge">Coming Soon</span></button>
+          <button class="menu-btn" id="type-season">Season Pack</button>
           <button class="menu-btn back-btn" id="type-back">Back</button>
         </div>
 
@@ -59,6 +59,19 @@
           </div>
           <div id="episode-upload-status"></div>
           <button class="menu-btn back-btn" id="episode-upload-back">Back</button>
+        </div>
+
+        <!-- Upload Season Pack -->
+        <div id="upload-season" class="center-screen" style="display: none">
+          <h2>Select Season Folder</h2>
+          <div id="season-upload-box" class="upload-box">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Click to select a folder</span>
+          </div>
+          <div id="season-upload-status"></div>
+          <button class="menu-btn back-btn" id="season-upload-back">Back</button>
         </div>
 
         <!-- Edit Existing Torrents List -->
@@ -438,6 +451,196 @@
             <label>Overview / Description<textarea name="overview" id="episode-overview" rows="3" placeholder="Enter episode description..."></textarea></label>
             <div class="button-row">
               <button type="button" class="menu-btn back-btn" id="episode-details-back">Back</button>
+              <button type="submit" class="main-btn">Make Torrent</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Season Details -->
+        <div id="season-details" class="center-screen" style="display: none">
+          <h2>Season Pack Details</h2>
+          <div class="torrent-status-box">
+            <div class="torrent-status-title">Torrent Structure</div>
+            <pre id="season-torrent-tree">(No files yet)</pre>
+          </div>
+
+          <!-- TMDB TV Search Section (Season) -->
+          <div class="tmdb-search-section">
+            <div class="search-header">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <span>Search TMDB for TV Show</span>
+            </div>
+            <div class="search-input-row">
+              <input type="text" id="tmdb-season-search-input" placeholder="Search for a TV show..." />
+              <button type="button" class="search-btn" id="tmdb-season-search-btn">Search</button>
+            </div>
+            <div id="tmdb-season-search-results" class="search-results"></div>
+
+            <!-- Season picker (shown after selecting a show) -->
+            <div id="tmdb-season-picker" class="episode-picker" style="display: none">
+              <div class="picker-row">
+                <label class="picker-label">Season
+                  <select id="tmdb-season-pack-select">
+                    <option value="">-- Select Season --</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <form id="season-details-form">
+            <label>Show Name<input type="text" name="show_name" id="season-show-name" placeholder="Enter show name" /></label>
+            <div class="row">
+              <label>Season<input type="text" name="season" id="season-number" placeholder="1" inputmode="numeric" pattern="[0-9]*" /></label>
+              <label>Year<input type="text" name="year" id="season-year" placeholder="2024" inputmode="numeric" pattern="[0-9]*" /></label>
+            </div>
+            <div class="row">
+              <label>Total Size<input type="text" name="total_size" id="season-total-size" placeholder="20.5 GB" readonly /></label>
+              <label>Episodes<input type="text" name="episode_count" id="season-episode-count" placeholder="10" readonly /></label>
+            </div>
+            <div class="row">
+              <label>Language
+                <select name="language" id="season-language">
+                  <option value="">— Select —</option>
+                  <option value="English">English</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                  <option value="Italian">Italian</option>
+                  <option value="Portuguese">Portuguese</option>
+                  <option value="Japanese">Japanese</option>
+                  <option value="Korean">Korean</option>
+                  <option value="Chinese">Chinese</option>
+                  <option value="Russian">Russian</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Arabic">Arabic</option>
+                  <option value="Dutch">Dutch</option>
+                  <option value="Swedish">Swedish</option>
+                  <option value="Norwegian">Norwegian</option>
+                  <option value="Danish">Danish</option>
+                  <option value="Finnish">Finnish</option>
+                  <option value="Polish">Polish</option>
+                  <option value="Turkish">Turkish</option>
+                  <option value="Thai">Thai</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>Resolution
+                <select name="resolution" id="season-resolution">
+                  <option value="">— Select —</option>
+                  <option value="2160p">2160p</option>
+                  <option value="1440p">1440p</option>
+                  <option value="1080p">1080p</option>
+                  <option value="720p">720p</option>
+                  <option value="576p">576p</option>
+                  <option value="480p">480p</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>Source
+                <select name="source" id="season-source">
+                  <option value="">— Select —</option>
+                  <option value="BluRay">BluRay</option>
+                  <option value="Remux">Remux</option>
+                  <option value="WEB-DL">WEB-DL</option>
+                  <option value="WEBRip">WEBRip</option>
+                  <option value="HDTV">HDTV</option>
+                  <option value="HDTVRip">HDTVRip</option>
+                  <option value="BDRip">BDRip</option>
+                  <option value="DVDRip">DVDRip</option>
+                  <option value="DVD">DVD</option>
+                  <option value="CAM">CAM</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>Video Codec
+                <select name="video_codec" id="season-video-codec">
+                  <option value="">— Select —</option>
+                  <option value="x264">x264</option>
+                  <option value="x265">x265</option>
+                  <option value="AV1">AV1</option>
+                  <option value="VP9">VP9</option>
+                  <option value="XviD">XviD</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>Audio Codec
+                <select name="audio_codec" id="season-audio-codec">
+                  <option value="">— Select —</option>
+                  <option value="AAC">AAC</option>
+                  <option value="AC3">AC3</option>
+                  <option value="EAC3">EAC3</option>
+                  <option value="DTS">DTS</option>
+                  <option value="DTS-HD MA">DTS-HD MA</option>
+                  <option value="TrueHD">TrueHD</option>
+                  <option value="FLAC">FLAC</option>
+                  <option value="Opus">Opus</option>
+                  <option value="Vorbis">Vorbis</option>
+                  <option value="MP3">MP3</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>Container
+                <select name="container" id="season-container">
+                  <option value="">— Select —</option>
+                  <option value="MKV">MKV</option>
+                  <option value="MP4">MP4</option>
+                  <option value="AVI">AVI</option>
+                  <option value="WebM">WebM</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>Release Group<input type="text" name="release_group" id="season-release-group" placeholder="GROUP" /></label>
+              <label>Bit Depth
+                <select name="bit_depth" id="season-bit-depth">
+                  <option value="">— Select —</option>
+                  <option value="8-bit">8-bit</option>
+                  <option value="10-bit">10-bit</option>
+                  <option value="12-bit">12-bit</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>HDR Format
+                <select name="hdr_format" id="season-hdr-format">
+                  <option value="">— Select —</option>
+                  <option value="SDR">SDR</option>
+                  <option value="HDR">HDR</option>
+                  <option value="HDR10">HDR10</option>
+                  <option value="HDR10+">HDR10+</option>
+                  <option value="HLG">HLG</option>
+                  <option value="Dolby Vision">Dolby Vision</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+              <label>Audio Channels
+                <select name="audio_channels" id="season-audio-channels">
+                  <option value="">— Select —</option>
+                  <option value="1.0">1.0</option>
+                  <option value="2.0">2.0</option>
+                  <option value="5.1">5.1</option>
+                  <option value="7.1">7.1</option>
+                  <option value="__custom">Custom...</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <label>TMDB ID<input type="text" name="tmdb_id" id="season-tmdb-id" placeholder="12345" inputmode="numeric" pattern="[0-9]*" /></label>
+              <label>IMDB ID<input type="text" name="imdb_id" id="season-imdb-id" placeholder="tt1234567" /></label>
+            </div>
+            <label>Overview / Description<textarea name="overview" id="season-overview" rows="3" placeholder="Enter show description..."></textarea></label>
+            <div class="button-row">
+              <button type="button" class="menu-btn back-btn" id="season-details-back">Back</button>
               <button type="submit" class="main-btn">Make Torrent</button>
             </div>
           </form>

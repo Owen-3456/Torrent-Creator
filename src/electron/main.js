@@ -82,6 +82,19 @@ ipcMain.handle("select-file", async () => {
   return result.filePaths[0];
 });
 
+// Handle folder selection dialog
+ipcMain.handle("select-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
+
 // Handle opening external URLs
 ipcMain.handle("open-external", async (_event, url) => {
   await shell.openExternal(url);

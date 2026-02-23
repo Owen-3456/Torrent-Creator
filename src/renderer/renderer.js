@@ -8,9 +8,11 @@ const mainMenu = document.getElementById("main-menu");
 const selectType = document.getElementById("select-type");
 const uploadMovie = document.getElementById("upload-movie");
 const uploadEpisode = document.getElementById("upload-episode");
+const uploadSeason = document.getElementById("upload-season");
 const torrentList = document.getElementById("torrent-list");
 const movieDetails = document.getElementById("movie-details");
 const episodeDetails = document.getElementById("episode-details");
+const seasonDetails = document.getElementById("season-details");
 
 // Main Menu buttons
 const menuCreate = document.getElementById("menu-create");
@@ -32,6 +34,11 @@ const uploadBack = document.getElementById("upload-back");
 const episodeUploadBox = document.getElementById("episode-upload-box");
 const episodeUploadStatus = document.getElementById("episode-upload-status");
 const episodeUploadBack = document.getElementById("episode-upload-back");
+
+// Season upload screen
+const seasonUploadBox = document.getElementById("season-upload-box");
+const seasonUploadStatus = document.getElementById("season-upload-status");
+const seasonUploadBack = document.getElementById("season-upload-back");
 
 // Torrent list screen
 const torrentListContainer = document.getElementById("torrent-list-container");
@@ -121,7 +128,30 @@ const episodeHdrFormat = document.getElementById("episode-hdr-format");
 const episodeAudioChannels = document.getElementById("episode-audio-channels");
 const episodeDetailsBack = document.getElementById("episode-details-back");
 
-// TMDB TV Search elements
+// Season details screen
+const seasonTorrentTree = document.getElementById("season-torrent-tree");
+const seasonDetailsForm = document.getElementById("season-details-form");
+const seasonShowName = document.getElementById("season-show-name");
+const seasonNumber = document.getElementById("season-number");
+const seasonYear = document.getElementById("season-year");
+const seasonTotalSize = document.getElementById("season-total-size");
+const seasonEpisodeCount = document.getElementById("season-episode-count");
+const seasonLanguage = document.getElementById("season-language");
+const seasonResolution = document.getElementById("season-resolution");
+const seasonSource = document.getElementById("season-source");
+const seasonVideoCodec = document.getElementById("season-video-codec");
+const seasonAudioCodec = document.getElementById("season-audio-codec");
+const seasonContainer = document.getElementById("season-container");
+const seasonReleaseGroup = document.getElementById("season-release-group");
+const seasonTmdbId = document.getElementById("season-tmdb-id");
+const seasonImdbId = document.getElementById("season-imdb-id");
+const seasonOverview = document.getElementById("season-overview");
+const seasonBitDepth = document.getElementById("season-bit-depth");
+const seasonHdrFormat = document.getElementById("season-hdr-format");
+const seasonAudioChannels = document.getElementById("season-audio-channels");
+const seasonDetailsBack = document.getElementById("season-details-back");
+
+// TMDB TV Search elements (episode screen)
 const tmdbTvSearchInput = document.getElementById("tmdb-tv-search-input");
 const tmdbTvSearchBtn = document.getElementById("tmdb-tv-search-btn");
 const tmdbTvSearchResults = document.getElementById("tmdb-tv-search-results");
@@ -129,9 +159,20 @@ const tmdbEpisodePicker = document.getElementById("tmdb-episode-picker");
 const tmdbSeasonSelect = document.getElementById("tmdb-season-select");
 const tmdbEpisodeSelect = document.getElementById("tmdb-episode-select");
 
+// TMDB TV Search elements (season screen)
+const tmdbSeasonSearchInput = document.getElementById("tmdb-season-search-input");
+const tmdbSeasonSearchBtn = document.getElementById("tmdb-season-search-btn");
+const tmdbSeasonSearchResults = document.getElementById("tmdb-season-search-results");
+const tmdbSeasonPicker = document.getElementById("tmdb-season-picker");
+const tmdbSeasonPackSelect = document.getElementById("tmdb-season-pack-select");
+
 // Track selected TV show for episode picker
 let selectedTvShowId = null;
 let selectedTvShowData = null;
+
+// Track selected TV show for season picker
+let selectedSeasonShowId = null;
+let selectedSeasonShowData = null;
 
 // Torrent preview screen
 const torrentPreview = document.getElementById("torrent-preview");
@@ -173,6 +214,12 @@ const revertableFieldIds = [
   "episode-video-codec", "episode-audio-codec", "episode-container",
   "episode-release-group", "episode-bit-depth", "episode-hdr-format",
   "episode-audio-channels", "episode-tmdb-id", "episode-imdb-id", "episode-overview",
+  "season-show-name", "season-number", "season-year",
+  "season-total-size", "season-episode-count",
+  "season-language", "season-resolution", "season-source",
+  "season-video-codec", "season-audio-codec", "season-container",
+  "season-release-group", "season-bit-depth", "season-hdr-format",
+  "season-audio-channels", "season-tmdb-id", "season-imdb-id", "season-overview",
 ];
 
 // Guessit source -> dropdown value mapping
@@ -214,6 +261,9 @@ const customDropdownIds = [
   "episode-language", "episode-resolution", "episode-source",
   "episode-video-codec", "episode-audio-codec", "episode-container",
   "episode-bit-depth", "episode-hdr-format", "episode-audio-channels",
+  "season-language", "season-resolution", "season-source",
+  "season-video-codec", "season-audio-codec", "season-container",
+  "season-bit-depth", "season-hdr-format", "season-audio-channels",
 ];
 
 /**
@@ -329,7 +379,7 @@ function enforceTimeInput(inputEl) {
 // ============================================
 // Screen Navigation
 // ============================================
-const screens = [mainMenu, selectType, uploadMovie, uploadEpisode, torrentList, movieDetails, episodeDetails, torrentSuccess];
+const screens = [mainMenu, selectType, uploadMovie, uploadEpisode, uploadSeason, torrentList, movieDetails, episodeDetails, seasonDetails, torrentSuccess];
 
 function showScreen(screen) {
   screens.forEach((s) => (s.style.display = "none"));
@@ -344,6 +394,9 @@ function showScreen(screen) {
   } else if (screen === "upload-episode") {
     uploadEpisode.style.display = "flex";
     resetEpisodeUploadStatus();
+  } else if (screen === "upload-season") {
+    uploadSeason.style.display = "flex";
+    resetSeasonUploadStatus();
   } else if (screen === "torrent-list") {
     torrentList.style.display = "flex";
     loadTorrentList();
@@ -351,6 +404,8 @@ function showScreen(screen) {
     movieDetails.style.display = "flex";
   } else if (screen === "episode-details") {
     episodeDetails.style.display = "flex";
+  } else if (screen === "season-details") {
+    seasonDetails.style.display = "flex";
   } else if (screen === "success") {
     torrentSuccess.style.display = "flex";
   }
@@ -364,6 +419,11 @@ function resetUploadStatus() {
 function resetEpisodeUploadStatus() {
   episodeUploadStatus.textContent = "";
   episodeUploadStatus.style.color = "";
+}
+
+function resetSeasonUploadStatus() {
+  seasonUploadStatus.textContent = "";
+  seasonUploadStatus.style.color = "";
 }
 
 // ============================================
@@ -388,9 +448,12 @@ typeMovie.addEventListener("click", () => {
   showScreen("upload");
 });
 
-// Episode and Season buttons are disabled in HTML with "Coming Soon" badges
 typeEpisode.addEventListener("click", () => {
   showScreen("upload-episode");
+});
+
+typeSeason.addEventListener("click", () => {
+  showScreen("upload-season");
 });
 
 typeBack.addEventListener("click", () => {
@@ -424,6 +487,45 @@ episodeUploadBox.addEventListener("click", async () => {
 episodeUploadBack.addEventListener("click", () => {
   showScreen("select-type");
 });
+
+// ============================================
+// Season Upload Screen Event Handlers
+// ============================================
+seasonUploadBox.addEventListener("click", async () => {
+  const folderPath = await window.api.selectFolder();
+  if (folderPath) {
+    handleSeasonFolderUpload(folderPath);
+  }
+});
+
+seasonUploadBack.addEventListener("click", () => {
+  showScreen("select-type");
+});
+
+async function handleSeasonFolderUpload(folderPath) {
+  seasonUploadStatus.textContent = "Processing folder...";
+  seasonUploadStatus.style.color = "var(--accent-primary)";
+
+  try {
+    const response = await window.api.fetch("/parse-season", {
+      method: "POST",
+      body: JSON.stringify({ folder_path: folderPath }),
+    });
+
+    if (response.success) {
+      seasonUploadStatus.textContent = `Found ${response.episode_count} episode(s)!`;
+      seasonUploadStatus.style.color = "var(--success)";
+      currentTorrentFolder = response.target_folder;
+      showSeasonDetails(response);
+    } else {
+      seasonUploadStatus.textContent = "Error: " + (response.error || "Failed to process folder.");
+      seasonUploadStatus.style.color = "var(--error)";
+    }
+  } catch (error) {
+    seasonUploadStatus.textContent = "Error: " + (error.message || "An error occurred while processing the folder.");
+    seasonUploadStatus.style.color = "var(--error)";
+  }
+}
 
 async function handleEpisodeFileUpload(filepath) {
   episodeUploadStatus.textContent = "Processing file...";
@@ -543,7 +645,20 @@ async function loadTorrentDetails(folderPath) {
 
     if (response.success) {
       currentTorrentFolder = folderPath;
-      if (response.media_type === "episode") {
+      if (response.media_type === "season") {
+        // For existing season pack torrents, build minimal data for showSeasonDetails
+        const videoFiles = (response.files || [])
+          .filter(f => {
+            const ext = f.split(".").pop().toLowerCase();
+            return ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v"].includes(ext);
+          })
+          .map(f => ({ name: f, size: "" }));
+        response.folder_name = response.filename?.replace(/\.[^.]+$/, "") || folderPath.split("/").pop();
+        response.video_files = videoFiles;
+        response.episode_count = videoFiles.length;
+        response.total_size = response.metadata?.file_size || "";
+        showSeasonDetails(response);
+      } else if (response.media_type === "episode") {
         showEpisodeDetails(response);
       } else {
         showMovieDetails(response);
@@ -1079,6 +1194,291 @@ async function autoSelectFirstTvResult(query) {
 }
 
 // ============================================
+// Season Pack Details
+// ============================================
+function showSeasonDetails(data) {
+  currentMediaType = "season";
+  showScreen("season-details");
+
+  const folderName = data.folder_name;
+  const videoFiles = data.video_files || [];
+
+  // Build torrent tree
+  const treeLines = [
+    `${cachedOutputDir}/`,
+    `└── ${folderName}/`,
+  ];
+  videoFiles.forEach((vf, i) => {
+    const connector = i < videoFiles.length - 1 ? "├──" : "└──";
+    const name = typeof vf === "object" ? vf.name : vf;
+    treeLines.push(`    ${connector} ${name}`);
+  });
+  seasonTorrentTree.textContent = treeLines.join("\n");
+
+  const parsed = data.parsed || {};
+  const metadata = data.metadata || {};
+
+  seasonShowName.value = parsed.title || folderName;
+  seasonNumber.value = parsed.season || "";
+  seasonYear.value = parsed.year || "";
+  seasonTotalSize.value = data.total_size || "";
+  seasonEpisodeCount.value = data.episode_count || videoFiles.length || "";
+  setSelectValue(seasonLanguage, parsed.language || "");
+  setSelectValue(seasonResolution, metadata.resolution || parsed.resolution || "");
+  setSelectValue(seasonSource, normalizeSource(parsed.source));
+  setSelectValue(seasonVideoCodec, metadata.video_codec || parsed.video_codec || "");
+  setSelectValue(seasonAudioCodec, metadata.audio_codec || parsed.audio_codec || "");
+  setSelectValue(seasonContainer, (parsed.container || "").toUpperCase());
+  seasonReleaseGroup.value = parsed.release_group || cachedReleaseGroup;
+  setSelectValue(seasonBitDepth, metadata.bit_depth || "");
+  setSelectValue(seasonHdrFormat, metadata.hdr_format || "");
+  setSelectValue(seasonAudioChannels, metadata.audio_channels || "");
+  seasonTmdbId.value = "";
+  seasonImdbId.value = "";
+  seasonOverview.value = "";
+
+  injectRevertButtons();
+  snapshotFieldDefaults();
+
+  // Reset TMDB season search state
+  tmdbSeasonSearchInput.value = parsed.title || "";
+  tmdbSeasonSearchResults.innerHTML = "";
+  tmdbSeasonPicker.style.display = "none";
+  selectedSeasonShowId = null;
+  selectedSeasonShowData = null;
+
+  // Auto-search if we have a title
+  if (parsed.title) {
+    autoSelectFirstSeasonTvResult(parsed.title);
+  }
+}
+
+seasonDetailsBack.addEventListener("click", () => {
+  showScreen("select-type");
+});
+
+function collectSeasonFormData() {
+  return {
+    folder_path: currentTorrentFolder,
+    show_name: seasonShowName.value,
+    season: parseInt(seasonNumber.value) || 0,
+    year: seasonYear.value,
+    total_size: seasonTotalSize.value,
+    episode_count: parseInt(seasonEpisodeCount.value) || 0,
+    language: getSelectValue(seasonLanguage),
+    resolution: getSelectValue(seasonResolution),
+    source: getSelectValue(seasonSource),
+    video_codec: getSelectValue(seasonVideoCodec),
+    audio_codec: getSelectValue(seasonAudioCodec),
+    container: getSelectValue(seasonContainer),
+    release_group: seasonReleaseGroup.value,
+    tmdb_id: seasonTmdbId.value,
+    imdb_id: seasonImdbId.value,
+    overview: seasonOverview.value,
+    bit_depth: getSelectValue(seasonBitDepth),
+    hdr_format: getSelectValue(seasonHdrFormat),
+    audio_channels: getSelectValue(seasonAudioChannels),
+  };
+}
+
+seasonDetailsForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = collectSeasonFormData();
+  const submitBtn = seasonDetailsForm.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Loading preview...";
+
+  try {
+    const response = await window.api.fetch("/preview-season-torrent", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    if (response.success) {
+      pendingTorrentData = formData;
+      currentMediaType = "season";
+      showTorrentPreview(response);
+    } else {
+      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
+    }
+  } catch (error) {
+    alert("Error generating preview: " + error.message);
+  } finally {
+    submitBtn.textContent = originalText;
+    submitBtn.disabled = false;
+  }
+});
+
+// ============================================
+// TMDB TV Search (Season Pack)
+// ============================================
+tmdbSeasonSearchBtn.addEventListener("click", () => {
+  performTmdbSeasonSearch();
+});
+
+tmdbSeasonSearchInput.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    performTmdbSeasonSearch();
+  }
+});
+
+async function performTmdbSeasonSearch() {
+  const query = tmdbSeasonSearchInput.value.trim();
+  if (!query) return;
+
+  tmdbSeasonSearchBtn.disabled = true;
+  tmdbSeasonSearchResults.innerHTML = '<div class="search-loading">Searching...</div>';
+  tmdbSeasonPicker.style.display = "none";
+
+  try {
+    const response = await window.api.fetch("/tmdb/search-tv", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      renderSeasonTvSearchResults(response.results);
+    } else {
+      tmdbSeasonSearchResults.innerHTML = '<div class="search-empty">No TV shows found</div>';
+    }
+  } catch (error) {
+    tmdbSeasonSearchResults.innerHTML = `<div class="search-error">${error.message}</div>`;
+  } finally {
+    tmdbSeasonSearchBtn.disabled = false;
+  }
+}
+
+function renderSeasonTvSearchResults(results) {
+  tmdbSeasonSearchResults.innerHTML = "";
+
+  results.forEach((show) => {
+    const item = document.createElement("div");
+    item.className = "search-result-item";
+
+    const posterUrl = show.poster_path
+      ? `https://image.tmdb.org/t/p/w92${show.poster_path}`
+      : null;
+
+    item.innerHTML = `
+      ${
+        posterUrl
+          ? `<img class="search-result-poster" src="${posterUrl}" alt="${show.name}" />`
+          : `<div class="search-result-poster no-poster">No Image</div>`
+      }
+      <div class="search-result-info">
+        <div class="search-result-title">${show.name}</div>
+        <div class="search-result-meta">${show.year || "Unknown year"}${show.vote_average ? ` • ${show.vote_average.toFixed(1)}/10` : ""}</div>
+        ${show.overview ? `<div class="search-result-overview">${show.overview}</div>` : ""}
+      </div>
+    `;
+
+    item.addEventListener("click", (e) => {
+      selectSeasonTvShow(show.id, e.currentTarget);
+    });
+
+    tmdbSeasonSearchResults.appendChild(item);
+  });
+}
+
+async function selectSeasonTvShow(tvId, clickedItem) {
+  const items = tmdbSeasonSearchResults.querySelectorAll(".search-result-item");
+  items.forEach((item) => item.classList.remove("selected"));
+  clickedItem.classList.add("selected");
+
+  try {
+    const response = await window.api.fetch(`/tmdb/tv/${tvId}`);
+
+    if (response.success && response.show) {
+      selectedSeasonShowId = tvId;
+      selectedSeasonShowData = response.show;
+      fillSeasonShowDetails(response.show);
+      showSeasonPicker(response.show);
+    }
+  } catch (error) {
+    console.error("Failed to fetch TV show details:", error);
+  }
+}
+
+function fillSeasonShowDetails(show) {
+  seasonShowName.value = show.name || "";
+  seasonYear.value = show.year || "";
+  seasonTmdbId.value = show.tmdb_id || "";
+  seasonImdbId.value = show.imdb_id || "";
+
+  if (show.spoken_languages && show.spoken_languages.length > 0) {
+    setSelectValue(seasonLanguage, show.spoken_languages[0]);
+  } else if (show.original_language) {
+    const langNames = {
+      en: "English", es: "Spanish", fr: "French", de: "German",
+      it: "Italian", ja: "Japanese", ko: "Korean", zh: "Chinese",
+      ru: "Russian", pt: "Portuguese",
+    };
+    setSelectValue(seasonLanguage, langNames[show.original_language] || show.original_language);
+  }
+
+  if (show.overview) {
+    seasonOverview.value = show.overview;
+  }
+
+  snapshotFieldDefaults();
+}
+
+function showSeasonPicker(show) {
+  tmdbSeasonPicker.style.display = "";
+
+  tmdbSeasonPackSelect.innerHTML = '<option value="">-- Select Season --</option>';
+
+  if (show.seasons && show.seasons.length > 0) {
+    show.seasons.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.season_number;
+      opt.textContent = `Season ${s.season_number} (${s.episode_count} episodes)`;
+      tmdbSeasonPackSelect.appendChild(opt);
+    });
+
+    // Auto-select season if parsed
+    const currentSeason = seasonNumber.value;
+    if (currentSeason) {
+      tmdbSeasonPackSelect.value = currentSeason;
+    }
+  }
+}
+
+tmdbSeasonPackSelect.addEventListener("change", () => {
+  const seasonNum = tmdbSeasonPackSelect.value;
+  if (seasonNum) {
+    seasonNumber.value = seasonNum;
+    snapshotFieldDefaults();
+  }
+});
+
+async function autoSelectFirstSeasonTvResult(query) {
+  try {
+    const response = await window.api.fetch("/tmdb/search-tv", {
+      method: "POST",
+      body: JSON.stringify({ query: query }),
+    });
+
+    if (response.success && response.results.length > 0) {
+      const firstShow = response.results[0];
+      const showResponse = await window.api.fetch(`/tmdb/tv/${firstShow.id}`);
+
+      if (showResponse.success && showResponse.show) {
+        selectedSeasonShowId = firstShow.id;
+        selectedSeasonShowData = showResponse.show;
+        fillSeasonShowDetails(showResponse.show);
+        showSeasonPicker(showResponse.show);
+      }
+    }
+  } catch (error) {
+    console.error("Failed to auto-select TV result:", error);
+  }
+}
+
+// ============================================
 // Torrent Preview Screen
 // ============================================
 function showTorrentPreview(preview) {
@@ -1141,7 +1541,14 @@ previewConfirm.addEventListener("click", async () => {
   previewConfirm.textContent = "Creating torrent...";
 
   try {
-    const createEndpoint = currentMediaType === "episode" ? "/create-episode-torrent" : "/create-torrent";
+    let createEndpoint;
+    if (currentMediaType === "episode") {
+      createEndpoint = "/create-episode-torrent";
+    } else if (currentMediaType === "season") {
+      createEndpoint = "/create-season-torrent";
+    } else {
+      createEndpoint = "/create-torrent";
+    }
     const response = await window.api.fetch(createEndpoint, {
       method: "POST",
       body: JSON.stringify(pendingTorrentData),
@@ -1662,6 +2069,9 @@ enforceNumericInput(episodeSeason);
 enforceNumericInput(episodeEpisode);
 enforceTimeInput(episodeRuntime);
 enforceNumericInput(episodeTmdbId);
+enforceNumericInput(seasonNumber);
+enforceNumericInput(seasonYear);
+enforceNumericInput(seasonTmdbId);
 
 // ============================================
 // Revert Button System
