@@ -19,12 +19,17 @@ out/
 # IDE
 .vscode/
 .idea/
+.claude/
+.opencode/
 *.swp
 *.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
 
 # Project specific
 *.torrent
