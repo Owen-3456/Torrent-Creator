@@ -92,21 +92,13 @@
             <pre id="torrent-tree">(No files yet)</pre>
           </div>
 
-          <!-- TMDB Search Section -->
-          <div class="tmdb-search-section">
-            <div class="search-header">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
-              <span>Search TMDB</span>
-            </div>
-            <div class="search-input-row">
-              <input type="text" id="tmdb-search-input" placeholder="Search for a movie..." />
-              <button type="button" class="search-btn" id="tmdb-search-btn">Search</button>
-            </div>
-            <div id="tmdb-search-results" class="search-results"></div>
-          </div>
+          <button type="button" class="metadata-lookup-btn" id="movie-metadata-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Lookup Metadata
+          </button>
 
           <form id="movie-details-form">
             <label>Movie Name<input type="text" name="name" id="movie-name" placeholder="Enter movie name" /></label>
@@ -268,37 +260,13 @@
             <pre id="episode-torrent-tree">(No files yet)</pre>
           </div>
 
-          <!-- TMDB TV Search Section -->
-          <div class="tmdb-search-section">
-            <div class="search-header">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
-              <span>Search TMDB for TV Show</span>
-            </div>
-            <div class="search-input-row">
-              <input type="text" id="tmdb-tv-search-input" placeholder="Search for a TV show..." />
-              <button type="button" class="search-btn" id="tmdb-tv-search-btn">Search</button>
-            </div>
-            <div id="tmdb-tv-search-results" class="search-results"></div>
-
-            <!-- Season/Episode picker (shown after selecting a show) -->
-            <div id="tmdb-episode-picker" class="episode-picker" style="display: none">
-              <div class="picker-row">
-                <label class="picker-label">Season
-                  <select id="tmdb-season-select">
-                    <option value="">-- Select Season --</option>
-                  </select>
-                </label>
-                <label class="picker-label">Episode
-                  <select id="tmdb-episode-select">
-                    <option value="">-- Select Episode --</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-          </div>
+          <button type="button" class="metadata-lookup-btn" id="episode-metadata-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Lookup Metadata
+          </button>
 
           <form id="episode-details-form">
             <label>Show Name<input type="text" name="show_name" id="episode-show-name" placeholder="Enter show name" /></label>
@@ -465,32 +433,13 @@
             <pre id="season-torrent-tree">(No files yet)</pre>
           </div>
 
-          <!-- TMDB TV Search Section (Season) -->
-          <div class="tmdb-search-section">
-            <div class="search-header">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
-              </svg>
-              <span>Search TMDB for TV Show</span>
-            </div>
-            <div class="search-input-row">
-              <input type="text" id="tmdb-season-search-input" placeholder="Search for a TV show..." />
-              <button type="button" class="search-btn" id="tmdb-season-search-btn">Search</button>
-            </div>
-            <div id="tmdb-season-search-results" class="search-results"></div>
-
-            <!-- Season picker (shown after selecting a show) -->
-            <div id="tmdb-season-picker" class="episode-picker" style="display: none">
-              <div class="picker-row">
-                <label class="picker-label">Season
-                  <select id="tmdb-season-pack-select">
-                    <option value="">-- Select Season --</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-          </div>
+          <button type="button" class="metadata-lookup-btn" id="season-metadata-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            Lookup Metadata
+          </button>
 
           <form id="season-details-form">
             <label>Show Name<input type="text" name="show_name" id="season-show-name" placeholder="Enter show name" /></label>
@@ -702,10 +651,97 @@
           <button class="menu-btn back-btn" id="success-done">Back to Menu</button>
         </div>
 
+        <!-- Metadata Lookup Modal -->
+        <div id="metadata-modal" class="metadata-modal" style="display: none">
+          <div class="metadata-content">
+            <div class="metadata-header">
+              <h2>Lookup Metadata</h2>
+              <button class="icon-btn" id="metadata-close" title="Close">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <div class="metadata-body">
+              <!-- Search Input -->
+              <div class="metadata-search">
+                <input type="text" id="metadata-search-input" placeholder="Search for movie or TV show..." />
+                <button type="button" class="search-btn" id="metadata-search-btn">Search</button>
+              </div>
+
+              <!-- Search Results -->
+              <div id="metadata-search-results" class="metadata-results"></div>
+
+              <!-- Season/Episode Picker (for TV shows) -->
+              <div id="metadata-episode-picker" class="metadata-picker" style="display: none">
+                <div class="picker-row">
+                  <label>
+                    Season
+                    <select id="metadata-season-select">
+                      <option value="">-- Select Season --</option>
+                    </select>
+                  </label>
+                  <label>
+                    Episode
+                    <select id="metadata-episode-select">
+                      <option value="">-- Select Episode --</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="metadata-footer">
+              <button class="menu-btn back-btn" id="metadata-cancel">Cancel</button>
+              <button class="main-btn" id="metadata-apply" disabled>Apply Metadata</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conflict Resolution Modal -->
+        <div id="conflict-modal" class="conflict-modal" style="display: none">
+          <div class="conflict-content">
+            <h2>Torrent Conflict</h2>
+            <p class="conflict-message">A torrent with this name already exists.</p>
+            
+            <div class="conflict-comparison">
+              <div class="conflict-column">
+                <h3>Existing Torrent</h3>
+                <div class="conflict-info">
+                  <div class="conflict-row"><span class="conflict-label">Name:</span><span id="conflict-existing-name"></span></div>
+                  <div class="conflict-row"><span class="conflict-label">Size:</span><span id="conflict-existing-size"></span></div>
+                  <div class="conflict-row"><span class="conflict-label">Files:</span><span id="conflict-existing-files"></span></div>
+                  <div class="conflict-row"><span class="conflict-label">Created:</span><span id="conflict-existing-created"></span></div>
+                </div>
+              </div>
+              
+              <div class="conflict-column">
+                <h3>New Torrent</h3>
+                <div class="conflict-info">
+                  <div class="conflict-row"><span class="conflict-label">Name:</span><span id="conflict-new-name"></span></div>
+                  <div class="conflict-row"><span class="conflict-label">Size:</span><span id="conflict-new-size"></span></div>
+                  <div class="conflict-row"><span class="conflict-label">Files:</span><span id="conflict-new-files"></span></div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="conflict-actions">
+              <button class="menu-btn" id="conflict-overwrite">Delete & Overwrite</button>
+              <button class="menu-btn" id="conflict-open">Open Existing</button>
+              <button class="menu-btn back-btn" id="conflict-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Settings Screen -->
         <div id="settings" class="settings-screen" style="display: none">
           <div class="settings-header">
-            <h2>Settings</h2>
+            <div class="settings-title-row">
+              <h2>Settings</h2>
+              <span id="settings-unsaved-indicator" class="unsaved-indicator" style="display: none">Unsaved Changes</span>
+            </div>
             <button class="icon-btn" id="settings-close" title="Close">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
