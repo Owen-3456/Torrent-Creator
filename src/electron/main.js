@@ -59,7 +59,7 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
 
-  // Open DevTools only in development
+  // Open DevTools only in dev mode
   if (process.argv.includes("--dev")) {
     mainWindow.webContents.openDevTools();
   }
