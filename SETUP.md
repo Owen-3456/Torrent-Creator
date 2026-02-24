@@ -36,7 +36,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Key packages: fastapi, uvicorn, guessit, pymediainfo, httpx, torf, send2trash
+Key packages: fastapi, uvicorn, guessit, httpx, torf, send2trash
 
 ### 3. Install Node Dependencies
 
@@ -208,12 +208,14 @@ kill -9 <PID>
 **Check:**
 - Supported extensions: .mp4, .mkv, .avi, .mov, .wmv, .flv, .webm, .m4v
 - File not corrupted
-- MediaInfo installed:
+- ffprobe installed (from ffmpeg):
   ```bash
   # Ubuntu/Debian
-  sudo apt install mediainfo libmediainfo-dev
+  sudo apt install ffmpeg
   # macOS
-  brew install mediainfo
+  brew install ffmpeg
+  # Verify
+  ffprobe -version
   ```
 
 ### Permission Issues
@@ -271,10 +273,12 @@ npm start
 - fastapi - Web framework
 - uvicorn - ASGI server
 - guessit - Filename parsing
-- pymediainfo - Video metadata
 - httpx - HTTP client
 - torf - Torrent creation
 - send2trash - Safe deletion
+
+**System packages:**
+- ffmpeg (provides ffprobe) - Video metadata extraction
 
 **Node packages:**
 - electron - Desktop framework

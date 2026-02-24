@@ -91,7 +91,7 @@ Season: `{title}.S{season:02}.{quality}.{source}.{codec}-{group}`
 Frontend: Electron, Vanilla JavaScript  
 Backend: Python, FastAPI, Uvicorn  
 Parser: guessit  
-Metadata: TMDB API, pymediainfo  
+Metadata: TMDB API, ffprobe  
 Torrents: torf
 
 ---
