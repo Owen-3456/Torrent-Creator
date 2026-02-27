@@ -374,6 +374,123 @@ function hideCustomInput(selectEl) {
 }
 
 // ============================================
+// Custom Dialog (replaces native alert/confirm)
+// ============================================
+const customDialog = document.getElementById("custom-dialog");
+const customDialogTitle = document.getElementById("custom-dialog-title");
+const customDialogMessage = document.getElementById("custom-dialog-message");
+const customDialogOk = document.getElementById("custom-dialog-ok");
+const customDialogCancel = document.getElementById("custom-dialog-cancel");
+
+/**
+ * Show a themed alert dialog (replaces native alert()).
+ * @param {string} message - The message to display
+ * @param {object} [options] - Optional settings
+ * @param {string} [options.title] - Dialog title (default: based on type)
+ * @param {string} [options.type] - "error", "success", "warning", or "" (default: "")
+ * @returns {Promise<void>} Resolves when the user clicks OK
+ */
+function showAlert(message, options = {}) {
+  return new Promise((resolve) => {
+    const type = options.type || "";
+    const title = options.title || (type === "error" ? "Error" : type === "success" ? "Success" : type === "warning" ? "Warning" : "Alert");
+
+    customDialogTitle.textContent = title;
+    customDialogMessage.textContent = message;
+    customDialogCancel.style.display = "none";
+    customDialogOk.textContent = "OK";
+
+    // Apply type class
+    customDialog.className = "custom-dialog" + (type ? ` dialog-${type}` : "");
+    customDialog.style.display = "flex";
+
+    function cleanup() {
+      customDialog.style.display = "none";
+      customDialogOk.removeEventListener("click", onOk);
+      customDialog.removeEventListener("keydown", onKey);
+    }
+
+    function onOk() {
+      cleanup();
+      resolve();
+    }
+
+    function onKey(e) {
+      if (e.key === "Enter" || e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+        resolve();
+      }
+    }
+
+    customDialogOk.addEventListener("click", onOk);
+    customDialog.addEventListener("keydown", onKey);
+    customDialogOk.focus();
+  });
+}
+
+/**
+ * Show a themed confirm dialog (replaces native confirm()).
+ * @param {string} message - The message to display
+ * @param {object} [options] - Optional settings
+ * @param {string} [options.title] - Dialog title (default: "Confirm")
+ * @param {string} [options.type] - "error", "success", "warning", or "" (default: "warning")
+ * @param {string} [options.confirmText] - Text for the confirm button (default: "Confirm")
+ * @param {string} [options.cancelText] - Text for the cancel button (default: "Cancel")
+ * @returns {Promise<boolean>} Resolves true if confirmed, false if cancelled
+ */
+function showConfirm(message, options = {}) {
+  return new Promise((resolve) => {
+    const type = options.type || "warning";
+    const title = options.title || "Confirm";
+    const confirmText = options.confirmText || "Confirm";
+    const cancelText = options.cancelText || "Cancel";
+
+    customDialogTitle.textContent = title;
+    customDialogMessage.textContent = message;
+    customDialogCancel.style.display = "inline-block";
+    customDialogCancel.textContent = cancelText;
+    customDialogOk.textContent = confirmText;
+
+    // Apply type class
+    customDialog.className = "custom-dialog" + (type ? ` dialog-${type}` : "");
+    customDialog.style.display = "flex";
+
+    function cleanup() {
+      customDialog.style.display = "none";
+      customDialogOk.removeEventListener("click", onConfirm);
+      customDialogCancel.removeEventListener("click", onCancel);
+      customDialog.removeEventListener("keydown", onKey);
+    }
+
+    function onConfirm() {
+      cleanup();
+      resolve(true);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    function onKey(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm();
+      }
+    }
+
+    customDialogOk.addEventListener("click", onConfirm);
+    customDialogCancel.addEventListener("click", onCancel);
+    customDialog.addEventListener("keydown", onKey);
+    customDialogCancel.focus();
+  });
+}
+
+// ============================================
 // Input Validation (Year, Runtime, TMDB ID)
 // ============================================
 
@@ -545,9 +662,9 @@ seasonUploadBox.addEventListener("click", async () => {
   }
 });
 
-seasonUploadBack.addEventListener("click", () => {
+seasonUploadBack.addEventListener("click", async () => {
   if (seasonUploadInProgress) {
-    if (!confirm("Season pack is still being processed. Go back anyway?")) {
+    if (!await showConfirm("Season pack is still being processed. Go back anyway?")) {
       return;
     }
   }
@@ -818,10 +935,10 @@ async function loadTorrentDetails(folderPath) {
         showMovieDetails(response);
       }
     } else {
-      alert("Failed to load torrent details: " + (response.error || "Unknown error"));
+      await showAlert("Failed to load torrent details: " + (response.error || "Unknown error"), { type: "error" });
     }
   } catch (error) {
-    alert("Error loading torrent details: " + error.message);
+    await showAlert("Error loading torrent details: " + error.message, { type: "error" });
   }
 }
 
@@ -832,13 +949,13 @@ async function confirmDeleteTorrent(torrent) {
 
     const confirmMessage = `Are you sure you want to delete "${torrent.name}"?\n\n${capability.message}`;
 
-    if (confirm(confirmMessage)) {
+    if (await showConfirm(confirmMessage, { title: "Delete Torrent", confirmText: "Delete" })) {
       await deleteTorrent(torrent);
     }
   } catch (error) {
     console.error("Failed to get delete capability:", error);
     // Fallback confirmation
-    if (confirm(`Are you sure you want to delete "${torrent.name}"?`)) {
+    if (await showConfirm(`Are you sure you want to delete "${torrent.name}"?`, { title: "Delete Torrent", confirmText: "Delete" })) {
       await deleteTorrent(torrent);
     }
   }
@@ -856,7 +973,7 @@ async function deleteTorrent(torrent) {
       loadTorrentList();
     }
   } catch (error) {
-    alert("Failed to delete torrent: " + error.message);
+    await showAlert("Failed to delete torrent: " + error.message, { type: "error" });
   }
 }
 
@@ -977,10 +1094,10 @@ movieDetailsForm.addEventListener("submit", async (e) => {
       currentMediaType = "movie";
       showTorrentPreview(response);
     } else {
-      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
+      await showAlert("Failed to generate preview: " + (response.detail || "Unknown error"), { type: "error" });
     }
   } catch (error) {
-    alert("Error generating preview: " + error.message);
+    await showAlert("Error generating preview: " + error.message, { type: "error" });
   } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
@@ -1090,10 +1207,10 @@ episodeDetailsForm.addEventListener("submit", async (e) => {
       currentMediaType = "episode";
       showTorrentPreview(response);
     } else {
-      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
+      await showAlert("Failed to generate preview: " + (response.detail || "Unknown error"), { type: "error" });
     }
   } catch (error) {
-    alert("Error generating preview: " + error.message);
+    await showAlert("Error generating preview: " + error.message, { type: "error" });
   } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
@@ -1199,10 +1316,10 @@ seasonDetailsForm.addEventListener("submit", async (e) => {
       currentMediaType = "season";
       showTorrentPreview(response);
     } else {
-      alert("Failed to generate preview: " + (response.detail || "Unknown error"));
+      await showAlert("Failed to generate preview: " + (response.detail || "Unknown error"), { type: "error" });
     }
   } catch (error) {
-    alert("Error generating preview: " + error.message);
+    await showAlert("Error generating preview: " + error.message, { type: "error" });
   } finally {
     submitBtn.textContent = originalText;
     submitBtn.disabled = false;
@@ -1300,14 +1417,14 @@ previewConfirm.addEventListener("click", async () => {
       pendingTorrentData = null;
       showTorrentSuccess(displayName);
     } else {
-      alert("Failed to create torrent: " + (response.detail || "Unknown error"));
+      await showAlert("Failed to create torrent: " + (response.detail || "Unknown error"), { type: "error" });
       previewConfirm.textContent = "Create Torrent";
       previewConfirm.disabled = false;
     }
   } catch (error) {
-    alert("Error creating torrent: " + error.message);
-    previewConfirm.textContent = "Create Torrent";
-    previewConfirm.disabled = false;
+    await showAlert("Error creating torrent: " + error.message, { type: "error" });
+      previewConfirm.textContent = "Create Torrent";
+      previewConfirm.disabled = false;
   }
 });
 
@@ -1389,9 +1506,9 @@ function openSettings() {
   loadSettings();
 }
 
-function closeSettings(force = false) {
+async function closeSettings(force = false) {
   if (!force && settingsModified) {
-    if (!confirm("You have unsaved changes. Are you sure you want to close without saving?")) {
+    if (!await showConfirm("You have unsaved changes. Are you sure you want to close without saving?", { title: "Unsaved Changes" })) {
       return;
     }
   }
@@ -1642,21 +1759,20 @@ settingsSave.addEventListener("click", async () => {
       settingsModified = false;
       settingsUnsavedIndicator.style.display = "none";
       originalConfig = config;
-      alert("Settings saved successfully!");
+      await showAlert("Settings saved successfully!", { type: "success" });
     }
   } catch (error) {
     console.error("Failed to save settings:", error);
-    alert("Failed to save settings: " + error.message);
+    await showAlert("Failed to save settings: " + error.message, { type: "error" });
   }
 });
 
 // Export settings
 settingsExport.addEventListener("click", async () => {
   // Warn user about sensitive data
-  const confirmed = confirm(
-    "WARNING: The exported settings file contains your API keys and should be kept secure.\n\n" +
-    "Do not share this file publicly or commit it to version control.\n\n" +
-    "Continue with export?"
+  const confirmed = await showConfirm(
+    "WARNING: The exported settings file contains your API keys and should be kept secure.\n\nDo not share this file publicly or commit it to version control.\n\nContinue with export?",
+    { title: "Export Settings", type: "warning", confirmText: "Export" }
   );
   
   if (!confirmed) return;
@@ -1693,7 +1809,7 @@ settingsExport.addEventListener("click", async () => {
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error("Failed to export settings:", error);
-    alert("Failed to export settings: " + error.message);
+    await showAlert("Failed to export settings: " + error.message, { type: "error" });
   }
 });
 
@@ -1739,10 +1855,10 @@ settingsImport.addEventListener("click", () => {
       }
 
       markSettingsModified();
-      alert("Settings imported successfully! Don't forget to save.");
+      showAlert("Settings imported successfully! Don't forget to save.", { type: "success" });
     } catch (error) {
       console.error("Failed to import settings:", error);
-      alert("Failed to import settings: " + error.message);
+      showAlert("Failed to import settings: " + error.message, { type: "error" });
     }
   };
   input.click();
@@ -1947,7 +2063,7 @@ conflictOverwrite.addEventListener("click", async () => {
     }
   } catch (error) {
     const errorMsg = "Failed to delete existing torrent: " + error.message;
-    alert(errorMsg);
+    await showAlert(errorMsg, { type: "error" });
     
     // Update status with error
     if (conflictType === "movie") {
@@ -2145,7 +2261,7 @@ async function loadShowSeasons(showId) {
     metadataApply.disabled = true;
   } catch (error) {
     console.error("Failed to load show seasons:", error);
-    alert("Failed to load show details: " + error.message);
+    await showAlert("Failed to load show details: " + error.message, { type: "error" });
   }
 }
 
@@ -2166,7 +2282,7 @@ async function loadEpisodes(showId, seasonNumber) {
     }
   } catch (error) {
     console.error("Failed to load episodes:", error);
-    alert("Failed to load episodes: " + error.message);
+    await showAlert("Failed to load episodes: " + error.message, { type: "error" });
   }
 }
 
@@ -2230,7 +2346,7 @@ metadataApply.addEventListener("click", async () => {
     
     closeMetadataModal();
   } catch (error) {
-    alert("Failed to apply metadata: " + error.message);
+    await showAlert("Failed to apply metadata: " + error.message, { type: "error" });
   }
 });
 
