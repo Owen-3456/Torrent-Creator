@@ -569,16 +569,20 @@ function showScreen(screen) {
 function resetUploadStatus() {
   movieUploadStatus.textContent = "";
   movieUploadStatus.style.color = "";
+  uploadBox.style.display = "flex";
 }
 
 function resetEpisodeUploadStatus() {
   episodeUploadStatus.textContent = "";
   episodeUploadStatus.style.color = "";
+  episodeUploadBox.style.display = "flex";
 }
 
 function resetSeasonUploadStatus() {
   seasonUploadStatus.textContent = "";
   seasonUploadStatus.style.color = "";
+  seasonUploadBox.style.display = "flex";
+  seasonUploadInProgress = false;
 }
 
 // ============================================
