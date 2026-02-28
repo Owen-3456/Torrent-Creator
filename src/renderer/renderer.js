@@ -37,6 +37,21 @@ const episodeUploadStatus = document.getElementById("episode-upload-status");
 const episodeUploadBack = document.getElementById("episode-upload-back");
 const episodeBatchList = document.getElementById("episode-batch-list");
 
+// Batch episode edit screen
+const batchEpisodeEdit = document.getElementById("batch-episode-edit");
+const batchEditFileCount = document.getElementById("batch-edit-file-count");
+const batchShowSearch = document.getElementById("batch-show-search");
+const batchSearchResults = document.getElementById("batch-search-results");
+const selectedShowDisplay = document.getElementById("selected-show-display");
+const selectedShowPoster = document.getElementById("selected-show-poster");
+const selectedShowTitle = document.getElementById("selected-show-title");
+const selectedShowYear = document.getElementById("selected-show-year");
+const changeShowBtn = document.getElementById("change-show-btn");
+const batchSeasonSelect = document.getElementById("batch-season-select");
+const episodeAssignmentList = document.getElementById("episode-assignment-list");
+const batchEditBack = document.getElementById("batch-edit-back");
+const batchCreateAllBtn = document.getElementById("batch-create-all-btn");
+
 // Season upload screen
 const seasonUploadBox = document.getElementById("season-upload-box");
 const seasonUploadStatus = document.getElementById("season-upload-status");
@@ -535,10 +550,14 @@ function enforceTimeInput(inputEl) {
 // ============================================
 // Screen Navigation
 // ============================================
-const screens = [mainMenu, selectType, uploadMovie, uploadEpisode, uploadSeason, torrentList, movieDetails, episodeDetails, seasonDetails, torrentSuccess];
+const screens = [mainMenu, selectType, uploadMovie, uploadEpisode, uploadSeason, torrentList, movieDetails, episodeDetails, seasonDetails, torrentSuccess, batchEpisodeEdit];
+
+function hideAllScreens() {
+  screens.forEach((s) => (s.style.display = "none"));
+}
 
 function showScreen(screen) {
-  screens.forEach((s) => (s.style.display = "none"));
+  hideAllScreens();
 
   if (screen === "menu") {
     mainMenu.style.display = "flex";
@@ -817,37 +836,52 @@ let spinnerInterval = null;
 let spinnerFrame = 0;
 const spinnerFrames = ['|', '/', '-', '\\'];
 
+// Batch edit state
+let batchSelectedShow = null;
+let batchSeasons = [];
+let batchSearchTimeout = null;
+
 async function handleBatchEpisodeUpload(filepaths) {
   if (!filepaths || filepaths.length === 0) return;
-
-  // Hide upload box
-  episodeUploadBox.style.display = "none";
   
   // Initialize batch state
   batchEpisodes = filepaths.map((filepath, index) => ({
     filepath,
     filename: filepath.split(/[\\/]/).pop(),
     status: "pending",
-    index
+    index,
+    assignedEpisode: null
   }));
-  batchCurrentIndex = 0;
-
-  // Show batch list
-  episodeBatchList.style.display = "block";
-  updateBatchList();
-
-  // Start processing
-  episodeUploadStatus.textContent = `Processing ${batchEpisodes.length} episode(s)...`;
-  episodeUploadStatus.style.color = "var(--text-secondary)";
-
-  // Start spinner animation
-  spinnerFrame = 0;
-  spinnerInterval = setInterval(() => {
-    spinnerFrame = (spinnerFrame + 1) % spinnerFrames.length;
-    updateBatchList();
-  }, 150);
-
-  await processBatchEpisodes();
+  
+  // Navigate to batch edit screen
+  hideAllScreens();
+  batchEpisodeEdit.style.display = "block";
+  
+  // Update file count
+  batchEditFileCount.textContent = `${batchEpisodes.length} file(s) selected`;
+  
+  // Reset batch edit state
+  batchSelectedShow = null;
+  batchSeasons = [];
+  batchEpisodes.forEach(ep => ep.assignedEpisode = null);
+  
+  // Reset UI
+  batchShowSearch.value = "";
+  batchShowSearch.style.display = "block";
+  batchSearchResults.innerHTML = "";
+  selectedShowDisplay.classList.remove("show");
+  batchSeasonSelect.innerHTML = '<option value="">Select a season first</option>';
+  batchSeasonSelect.disabled = true;
+  episodeAssignmentList.innerHTML = "";
+  
+  // Set step states
+  document.getElementById("batch-step-1").classList.remove("step-disabled", "step-completed");
+  document.getElementById("batch-step-1").classList.add("step-active");
+  document.getElementById("batch-step-2").classList.remove("step-active", "step-completed");
+  document.getElementById("batch-step-2").classList.add("step-disabled");
+  document.getElementById("batch-step-3").classList.remove("step-active", "step-completed");
+  document.getElementById("batch-step-3").classList.add("step-disabled");
+  batchCreateAllBtn.disabled = true;
 }
 
 function updateBatchList() {
@@ -1064,11 +1098,31 @@ async function loadTorrentList() {
 
   try {
     const response = await window.api.fetch("/torrents");
+    const torrents = response.torrents;
 
-    if (response.torrents && response.torrents.length > 0) {
-      torrentListContainer.innerHTML = "";
+    // Check if there are any torrents at all
+    const totalCount = (torrents.movies?.length || 0) + (torrents.episodes?.length || 0) + (torrents.seasons?.length || 0);
 
-      response.torrents.forEach((torrent) => {
+    if (totalCount === 0) {
+      torrentListContainer.innerHTML = '<p class="empty">No torrents found. Create one first!</p>';
+      return;
+    }
+
+    torrentListContainer.innerHTML = "";
+
+    // Helper function to create torrent sections
+    function createTorrentSection(title, torrentList) {
+      if (!torrentList || torrentList.length === 0) return;
+
+      const section = document.createElement("div");
+      section.style.marginBottom = "2rem";
+
+      const header = document.createElement("h3");
+      header.textContent = `${title} (${torrentList.length})`;
+      header.style.cssText = "color: var(--text-primary); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-default);";
+      section.appendChild(header);
+
+      torrentList.forEach((torrent) => {
         const item = document.createElement("div");
         item.className = "torrent-list-item";
         item.innerHTML = `
@@ -1098,11 +1152,16 @@ async function loadTorrentList() {
           confirmDeleteTorrent(torrent);
         });
 
-        torrentListContainer.appendChild(item);
+        section.appendChild(item);
       });
-    } else {
-      torrentListContainer.innerHTML = '<p class="empty">No torrents found. Create one first!</p>';
+
+      torrentListContainer.appendChild(section);
     }
+
+    // Create sections for each type
+    createTorrentSection("Movies", torrents.movies);
+    createTorrentSection("Episodes", torrents.episodes);
+    createTorrentSection("Season Packs", torrents.seasons);
   } catch (error) {
     torrentListContainer.innerHTML = `<p class="error">Error loading torrents: ${error.message}</p>`;
   }
@@ -2732,6 +2791,333 @@ async function applySeasonMetadata(show, seasonNum) {
   }
   
   snapshotFieldDefaults();
+}
+
+// ============================================
+// Batch Episode Edit Screen
+// ============================================
+
+// Back button
+batchEditBack.addEventListener("click", () => {
+  hideAllScreens();
+  uploadEpisode.style.display = "block";
+  episodeUploadBox.style.display = "flex";
+  episodeBatchList.style.display = "none";
+  batchEpisodes = [];
+});
+
+// Show search with debounce
+batchShowSearch.addEventListener("input", () => {
+  clearTimeout(batchSearchTimeout);
+  const query = batchShowSearch.value.trim();
+  
+  if (query.length < 2) {
+    batchSearchResults.innerHTML = "";
+    return;
+  }
+  
+  // Show searching indicator
+  batchSearchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Searching...</div>';
+  
+  batchSearchTimeout = setTimeout(() => searchBatchShow(query), 300);
+});
+
+// Search button click (backup method)
+const batchShowSearchBtn = document.getElementById("batch-show-search-btn");
+if (batchShowSearchBtn) {
+  batchShowSearchBtn.addEventListener("click", () => {
+    const query = batchShowSearch.value.trim();
+    if (query.length >= 2) {
+      batchSearchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Searching...</div>';
+      searchBatchShow(query);
+    } else {
+      batchSearchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--error);">Please enter at least 2 characters</div>';
+    }
+  });
+}
+
+// Also trigger search on Enter key
+batchShowSearch.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") {
+    const query = batchShowSearch.value.trim();
+    if (query.length >= 2) {
+      clearTimeout(batchSearchTimeout);
+      batchSearchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Searching...</div>';
+      searchBatchShow(query);
+    }
+  }
+});
+
+async function searchBatchShow(query) {
+  try {
+    const data = await window.api.fetch('/tmdb/search-tv', {
+      method: 'POST',
+      body: JSON.stringify({ query })
+    });
+    
+    if (data.results && data.results.length > 0) {
+      batchSearchResults.innerHTML = data.results.slice(0, 8).map(show => `
+        <div class="batch-search-result" data-show-id="${show.id}">
+          <div class="batch-search-result-title">${show.name}</div>
+          <div class="batch-search-result-info">
+            ${show.year || 'N/A'} | 
+            ${show.vote_average ? show.vote_average.toFixed(1) : 'N/A'}/10
+          </div>
+        </div>
+      `).join("");
+      
+      // Add click handlers
+      document.querySelectorAll(".batch-search-result").forEach(item => {
+        item.addEventListener("click", () => {
+          const showId = item.getAttribute("data-show-id");
+          selectBatchShow(showId);
+        });
+      });
+    } else {
+      batchSearchResults.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-muted);">No results found</div>';
+    }
+  } catch (error) {
+    let errorMsg = error.message;
+    
+    // Add helpful error messages
+    if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+      errorMsg = "Cannot connect to backend server. Is it running?";
+    } else if (errorMsg.includes("TMDB API key not configured")) {
+      errorMsg = "TMDB API key not configured. Please add it in Settings.";
+    }
+    
+    batchSearchResults.innerHTML = `<div style="padding: 1rem; color: var(--error); font-size: 0.85rem;">${errorMsg}</div>`;
+  }
+}
+
+async function selectBatchShow(showId) {
+  try {
+    // Fetch show details
+    const data = await window.api.fetch(`/tmdb/tv/${showId}`);
+    const show = data.show;
+    batchSelectedShow = show;
+    
+    // Hide search, show selected display
+    batchShowSearch.style.display = "none";
+    batchSearchResults.innerHTML = "";
+    selectedShowDisplay.classList.add("show");
+    
+    // Update display
+    selectedShowTitle.textContent = show.name;
+    selectedShowYear.textContent = show.year || 'N/A';
+    
+    if (show.poster_path) {
+      selectedShowPoster.src = `https://image.tmdb.org/t/p/w500${show.poster_path}`;
+    }
+    
+    // Load seasons
+    batchSeasons = show.seasons || [];
+    
+    // Update season select
+    batchSeasonSelect.innerHTML = '<option value="">Select a season</option>' + 
+      batchSeasons.map(season => 
+        `<option value="${season.season_number}">Season ${season.season_number} (${season.episode_count} episodes)</option>`
+      ).join("");
+    batchSeasonSelect.disabled = false;
+    
+    // Update step states
+    document.getElementById("batch-step-1").classList.remove("step-active");
+    document.getElementById("batch-step-1").classList.add("step-completed");
+    document.getElementById("batch-step-2").classList.remove("step-disabled");
+    document.getElementById("batch-step-2").classList.add("step-active");
+    
+  } catch (error) {
+    console.error("Error fetching show details:", error);
+    await showAlert("Error", "Failed to load show details");
+  }
+}
+
+// Change show button
+changeShowBtn.addEventListener("click", () => {
+  batchSelectedShow = null;
+  batchSeasons = [];
+  selectedShowDisplay.classList.remove("show");
+  batchShowSearch.style.display = "block";
+  batchShowSearch.value = "";
+  batchSearchResults.innerHTML = "";
+  batchSeasonSelect.innerHTML = '<option value="">Select a season first</option>';
+  batchSeasonSelect.disabled = true;
+  episodeAssignmentList.innerHTML = "";
+  batchCreateAllBtn.disabled = true;
+  
+  // Reset steps
+  document.getElementById("batch-step-1").classList.add("step-active");
+  document.getElementById("batch-step-1").classList.remove("step-completed");
+  document.getElementById("batch-step-2").classList.add("step-disabled");
+  document.getElementById("batch-step-2").classList.remove("step-active", "step-completed");
+  document.getElementById("batch-step-3").classList.add("step-disabled");
+  document.getElementById("batch-step-3").classList.remove("step-active");
+});
+
+// Season select change
+batchSeasonSelect.addEventListener("change", async () => {
+  const seasonNumber = parseInt(batchSeasonSelect.value);
+  if (!seasonNumber || !batchSelectedShow) return;
+  
+  try {
+    // Fetch episodes for this season
+    const seasonData = await window.api.fetch(`/tmdb/tv/${batchSelectedShow.id}/season/${seasonNumber}`);
+    const episodes = seasonData.episodes || [];
+    
+    // Create assignment list
+    episodeAssignmentList.innerHTML = batchEpisodes.map((file, index) => `
+      <div class="episode-assignment-item">
+        <div class="assignment-filename" title="${file.filename}">${file.filename}</div>
+        <div class="assignment-arrow">→</div>
+        <select class="assignment-episode-select" data-file-index="${index}">
+          <option value="">Unassigned</option>
+          ${episodes.map(ep => 
+            `<option value="${ep.episode_number}">E${ep.episode_number.toString().padStart(2, '0')} - ${ep.name}</option>`
+          ).join("")}
+        </select>
+      </div>
+    `).join("");
+    
+    // Add change handlers
+    document.querySelectorAll(".assignment-episode-select").forEach(select => {
+      select.addEventListener("change", checkBatchAssignments);
+    });
+    
+    // Update step states
+    document.getElementById("batch-step-2").classList.remove("step-active");
+    document.getElementById("batch-step-2").classList.add("step-completed");
+    document.getElementById("batch-step-3").classList.remove("step-disabled");
+    document.getElementById("batch-step-3").classList.add("step-active");
+    
+  } catch (error) {
+    console.error("Error loading season episodes:", error);
+    await showAlert("Error", "Failed to load season episodes");
+  }
+});
+
+function checkBatchAssignments() {
+  const selects = document.querySelectorAll(".assignment-episode-select");
+  let allAssigned = true;
+  
+  selects.forEach(select => {
+    const fileIndex = parseInt(select.getAttribute("data-file-index"));
+    const episodeNumber = select.value;
+    
+    if (episodeNumber) {
+      batchEpisodes[fileIndex].assignedEpisode = parseInt(episodeNumber);
+    } else {
+      batchEpisodes[fileIndex].assignedEpisode = null;
+      allAssigned = false;
+    }
+  });
+  
+  batchCreateAllBtn.disabled = !allAssigned;
+}
+
+// Create all torrents button
+batchCreateAllBtn.addEventListener("click", async () => {
+  await createBatchTorrents();
+});
+
+async function createBatchTorrents() {
+  // Hide batch edit screen, show upload episode screen with progress
+  hideAllScreens();
+  uploadEpisode.style.display = "block";
+  episodeUploadBox.style.display = "none";
+  episodeBatchList.style.display = "block";
+  
+  // Reset batch list display
+  batchEpisodes.forEach(ep => {
+    ep.status = "pending";
+    ep.error = null;
+  });
+  batchCurrentIndex = 0;
+  updateBatchList();
+  
+  episodeUploadStatus.textContent = `Creating ${batchEpisodes.length} torrent(s)...`;
+  episodeUploadStatus.style.color = "var(--text-secondary)";
+  
+  // Start spinner
+  spinnerFrame = 0;
+  spinnerInterval = setInterval(() => {
+    spinnerFrame = (spinnerFrame + 1) % spinnerFrames.length;
+    updateBatchList();
+  }, 150);
+  
+  // Process each file
+  const seasonNumber = parseInt(batchSeasonSelect.value);
+  
+  for (let i = 0; i < batchEpisodes.length; i++) {
+    const file = batchEpisodes[i];
+    batchCurrentIndex = i;
+    file.status = "processing";
+    updateBatchList();
+    
+    try {
+      // Parse file
+      const parseData = await window.api.fetch("/parse", {
+        method: "POST",
+        body: JSON.stringify({ filepath: file.filepath })
+      });
+      
+      // Check for conflicts
+      const conflictData = await window.api.fetch("/check-conflict", {
+        method: "POST",
+        body: JSON.stringify({ target_folder: parseData.target_folder })
+      });
+      
+      if (conflictData.exists) {
+        file.status = "error";
+        file.error = "Already exists";
+        updateBatchList();
+        continue;
+      }
+      
+      // Create torrent with TMDB metadata
+      await window.api.fetch("/create-episode-torrent", {
+        method: "POST",
+        body: JSON.stringify({
+          filepath: file.filepath,
+          target_folder: parseData.target_folder,
+          tmdb_id: batchSelectedShow.id,
+          season_number: seasonNumber,
+          episode_number: file.assignedEpisode
+        })
+      });
+      
+      file.status = "success";
+      file.targetFolder = parseData.target_folder;
+      
+    } catch (error) {
+      console.error(`Error processing ${file.filename}:`, error);
+      file.status = "error";
+      file.error = error.message;
+    }
+    
+    updateBatchList();
+  }
+  
+  // Stop spinner
+  clearInterval(spinnerInterval);
+  spinnerInterval = null;
+  
+  // Show completion message
+  const successCount = batchEpisodes.filter(ep => ep.status === "success").length;
+  const errorCount = batchEpisodes.filter(ep => ep.status === "error").length;
+  
+  if (errorCount === 0) {
+    episodeUploadStatus.textContent = `✓ Successfully created ${successCount} torrent(s)`;
+    episodeUploadStatus.style.color = "var(--success)";
+  } else {
+    episodeUploadStatus.textContent = `Created ${successCount} torrent(s), ${errorCount} failed`;
+    episodeUploadStatus.style.color = "var(--warning)";
+  }
+  
+  await showAlert("Batch Complete", 
+    `Successfully created ${successCount} torrent(s).\n` +
+    (errorCount > 0 ? `${errorCount} file(s) failed or were skipped.` : '') +
+    `\n\nYou can edit individual torrents in "My Torrents".`
+  );
 }
 
 

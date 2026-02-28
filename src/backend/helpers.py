@@ -6,6 +6,53 @@ import re
 VIDEO_EXTENSIONS = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v"]
 
 
+def get_torrent_subfolder(media_type: str) -> str:
+    """Get the subfolder name for a given media type.
+    
+    Args:
+        media_type: One of "movie", "episode", or "season"
+        
+    Returns:
+        Subfolder name: "movies", "episodes", or "seasons"
+    """
+    if media_type == "movie":
+        return "movies"
+    elif media_type == "episode":
+        return "episodes"
+    elif media_type == "season":
+        return "seasons"
+    else:
+        raise ValueError(f"Unknown media type: {media_type}")
+
+
+def get_torrents_base_dir(config: dict) -> str:
+    """Get the base torrents directory path from config.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        Expanded absolute path to torrents directory
+    """
+    output_dir = config.get("output_directory", "~/Documents/torrents")
+    return os.path.expanduser(output_dir)
+
+
+def get_torrent_type_dir(config: dict, media_type: str) -> str:
+    """Get the full path to the directory for a specific media type.
+    
+    Args:
+        config: Configuration dictionary
+        media_type: One of "movie", "episode", "season", or "unknown"
+        
+    Returns:
+        Full path to the media type subdirectory
+    """
+    base_dir = get_torrents_base_dir(config)
+    subfolder = get_torrent_subfolder(media_type)
+    return os.path.join(base_dir, subfolder)
+
+
 def find_video_file(folder_path: str) -> tuple:
     """Find the first video file in a folder.
 

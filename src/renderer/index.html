@@ -653,6 +653,58 @@
           <button class="menu-btn back-btn" id="success-done">Back to Menu</button>
         </div>
 
+        <!-- Batch Episode Edit Screen -->
+        <div id="batch-episode-edit" class="center-screen" style="display: none">
+          <div class="batch-edit-container">
+            <div class="batch-edit-header">
+              <h2>Batch Episode Editor</h2>
+              <p id="batch-edit-file-count">0 file(s) selected</p>
+            </div>
+
+            <!-- Step 1: Show Selection -->
+            <div id="batch-step-1" class="batch-step">
+              <h3><span class="step-number">1</span> Select TV Show</h3>
+              <div class="show-search-box">
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="batch-show-search" placeholder="Search for TV show..." style="flex: 1;" />
+                  <button type="button" class="search-btn" id="batch-show-search-btn" style="padding: 0.75rem 1rem;">Search</button>
+                </div>
+                <div id="batch-search-results" class="batch-search-results"></div>
+              </div>
+              <div id="selected-show-display" class="selected-show-display">
+                <img id="selected-show-poster" class="selected-show-poster" alt="Show poster" />
+                <div class="selected-show-info">
+                  <h4 id="selected-show-title">Show Title</h4>
+                  <p id="selected-show-year">Year</p>
+                </div>
+                <div class="selected-show-actions">
+                  <button type="button" class="menu-btn" id="change-show-btn">Change</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Season Selection -->
+            <div id="batch-step-2" class="batch-step step-disabled">
+              <h3><span class="step-number">2</span> Select Season</h3>
+              <select id="batch-season-select">
+                <option value="">Select a season first</option>
+              </select>
+            </div>
+
+            <!-- Step 3: Episode Assignment -->
+            <div id="batch-step-3" class="batch-step step-disabled">
+              <h3><span class="step-number">3</span> Assign Episodes</h3>
+              <div id="episode-assignment-list" class="episode-assignment-list"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="batch-create-actions">
+              <button class="menu-btn back-btn" id="batch-edit-back">Back</button>
+              <button class="main-btn" id="batch-create-all-btn" disabled>Create All Torrents</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Metadata Lookup Modal -->
         <div id="metadata-modal" class="metadata-modal" style="display: none">
           <div class="metadata-content">

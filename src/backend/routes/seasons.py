@@ -10,7 +10,7 @@ from guessit import guessit
 from ..config import load_config
 from ..models import FolderRequest
 from ..metadata import get_file_metadata
-from ..helpers import find_all_video_files, format_file_size, serialize_parsed
+from ..helpers import find_all_video_files, format_file_size, serialize_parsed, get_torrent_type_dir
 from ..nfo import generate_nfo
 
 router = APIRouter()
@@ -47,8 +47,7 @@ def check_season_conflict(folder_req: FolderRequest):
 
     # Check target folder
     config = load_config()
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-    torrents_dir = os.path.expanduser(output_dir)
+    torrents_dir = get_torrent_type_dir(config, "season")
     folder_name = os.path.basename(folder_path)
     target_folder = os.path.join(torrents_dir, folder_name)
 
@@ -137,8 +136,7 @@ def parse_season_folder(folder_req: FolderRequest):
 
     # Create target folder in output directory
     config = load_config()
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-    torrents_dir = os.path.expanduser(output_dir)
+    torrents_dir = get_torrent_type_dir(config, "season")
     folder_name = os.path.basename(folder_path)
     target_folder = os.path.join(torrents_dir, folder_name)
 

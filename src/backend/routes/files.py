@@ -10,7 +10,7 @@ from guessit import guessit
 from ..config import load_config
 from ..models import FileRequest
 from ..metadata import get_file_metadata
-from ..helpers import format_file_size, serialize_parsed
+from ..helpers import format_file_size, serialize_parsed, get_torrent_type_dir
 from ..nfo import generate_nfo
 
 router = APIRouter()
@@ -39,10 +39,20 @@ def check_torrent_conflict(file_req: FileRequest):
     filename = os.path.basename(filepath)
     base_name = os.path.splitext(filename)[0]
 
-    # Check target folder
+    # Check target folder (need to parse to determine type first)
     config = load_config()
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-    torrents_dir = os.path.expanduser(output_dir)
+    parsed_temp = guessit(filename)
+    parsed_type = parsed_temp.get("type", "")
+    if parsed_type == "movie":
+        temp_media_type = "movie"
+    elif "season" in parsed_temp and "episode" not in parsed_temp:
+        temp_media_type = "season"
+    elif "episode" in parsed_temp:
+        temp_media_type = "episode"
+    else:
+        temp_media_type = "unknown"
+    
+    torrents_dir = get_torrent_type_dir(config, temp_media_type)
     target_folder = os.path.join(torrents_dir, base_name)
 
     if os.path.exists(target_folder):
@@ -122,8 +132,7 @@ def parse_and_process_file(file_req: FileRequest):
 
     # Create target directory structure
     config = load_config()
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-    torrents_dir = os.path.expanduser(output_dir)
+    torrents_dir = get_torrent_type_dir(config, media_type)
     target_folder = os.path.join(torrents_dir, base_name)
 
     # Create directories

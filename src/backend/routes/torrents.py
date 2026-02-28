@@ -10,7 +10,7 @@ from guessit import guessit
 from ..config import load_config
 from ..models import FolderRequest
 from ..metadata import get_file_metadata
-from ..helpers import find_video_file, find_all_video_files, serialize_parsed
+from ..helpers import find_video_file, find_all_video_files, serialize_parsed, get_torrents_base_dir, get_torrent_subfolder
 
 # Try to import send2trash for safe deletion
 try:
@@ -24,27 +24,43 @@ router = APIRouter()
 
 @router.get("/torrents")
 def list_torrents():
-    """List all existing torrent folders."""
+    """List all existing torrent folders grouped by type."""
     config = load_config()
-    output_dir = config.get("output_directory", "~/Documents/torrents")
-    torrents_dir = os.path.expanduser(output_dir)
+    base_dir = get_torrents_base_dir(config)
 
-    if not os.path.exists(torrents_dir):
-        return {"torrents": []}
+    if not os.path.exists(base_dir):
+        return {"torrents": {"movies": [], "episodes": [], "seasons": []}}
 
-    torrents = []
-    for name in os.listdir(torrents_dir):
-        folder_path = os.path.join(torrents_dir, name)
-        if os.path.isdir(folder_path):
-            file_count = len([f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))])
-            torrents.append({
-                "name": name,
-                "path": folder_path,
-                "file_count": file_count
-            })
+    torrents_by_type = {
+        "movies": [],
+        "episodes": [],
+        "seasons": []
+    }
 
-    torrents.sort(key=lambda x: x["name"].lower())
-    return {"torrents": torrents}
+    # Scan each type subfolder
+    for media_type in ["movie", "episode", "season"]:
+        subfolder = get_torrent_subfolder(media_type)
+        type_dir = os.path.join(base_dir, subfolder)
+        
+        if not os.path.exists(type_dir):
+            continue
+            
+        for name in os.listdir(type_dir):
+            folder_path = os.path.join(type_dir, name)
+            if os.path.isdir(folder_path):
+                file_count = len([f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))])
+                torrents_by_type[subfolder].append({
+                    "name": name,
+                    "path": folder_path,
+                    "file_count": file_count,
+                    "type": media_type
+                })
+
+    # Sort each category
+    for category in torrents_by_type.values():
+        category.sort(key=lambda x: x["name"].lower())
+
+    return {"torrents": torrents_by_type}
 
 
 @router.post("/torrent-details")
