@@ -35,6 +35,7 @@ const uploadBack = document.getElementById("upload-back");
 const episodeUploadBox = document.getElementById("episode-upload-box");
 const episodeUploadStatus = document.getElementById("episode-upload-status");
 const episodeUploadBack = document.getElementById("episode-upload-back");
+const episodeBatchList = document.getElementById("episode-batch-list");
 
 // Season upload screen
 const seasonUploadBox = document.getElementById("season-upload-box");
@@ -576,6 +577,10 @@ function resetEpisodeUploadStatus() {
   episodeUploadStatus.textContent = "";
   episodeUploadStatus.style.color = "";
   episodeUploadBox.style.display = "flex";
+  episodeBatchList.style.display = "none";
+  episodeBatchList.innerHTML = "";
+  batchEpisodes = [];
+  batchCurrentIndex = 0;
 }
 
 function resetSeasonUploadStatus() {
@@ -641,9 +646,15 @@ uploadBack.addEventListener("click", () => {
 // Episode Upload Screen Event Handlers
 // ============================================
 episodeUploadBox.addEventListener("click", async () => {
-  const filepath = await window.api.selectFile();
-  if (filepath) {
-    handleEpisodeFileUpload(filepath);
+  const filepaths = await window.api.selectMultipleFiles();
+  if (filepaths && filepaths.length > 0) {
+    // If only one file selected, use single episode flow
+    if (filepaths.length === 1) {
+      handleEpisodeFileUpload(filepaths[0]);
+    } else {
+      // Multiple files, use batch flow
+      handleBatchEpisodeUpload(filepaths);
+    }
   }
 });
 
@@ -797,6 +808,192 @@ async function processEpisodeUpload(filepath) {
   }
 }
 
+// ============================================
+// Batch Episode Upload
+// ============================================
+let batchEpisodes = [];
+let batchCurrentIndex = 0;
+let spinnerInterval = null;
+let spinnerFrame = 0;
+const spinnerFrames = ['|', '/', '-', '\\'];
+
+async function handleBatchEpisodeUpload(filepaths) {
+  if (!filepaths || filepaths.length === 0) return;
+
+  // Hide upload box
+  episodeUploadBox.style.display = "none";
+  
+  // Initialize batch state
+  batchEpisodes = filepaths.map((filepath, index) => ({
+    filepath,
+    filename: filepath.split(/[\\/]/).pop(),
+    status: "pending",
+    index
+  }));
+  batchCurrentIndex = 0;
+
+  // Show batch list
+  episodeBatchList.style.display = "block";
+  updateBatchList();
+
+  // Start processing
+  episodeUploadStatus.textContent = `Processing ${batchEpisodes.length} episode(s)...`;
+  episodeUploadStatus.style.color = "var(--text-secondary)";
+
+  // Start spinner animation
+  spinnerFrame = 0;
+  spinnerInterval = setInterval(() => {
+    spinnerFrame = (spinnerFrame + 1) % spinnerFrames.length;
+    updateBatchList();
+  }, 150);
+
+  await processBatchEpisodes();
+}
+
+function updateBatchList() {
+  const listHtml = batchEpisodes.map((ep, index) => {
+    let statusIcon = "";
+    let statusColor = "var(--text-secondary)";
+    let statusText = "Pending";
+
+    if (ep.status === "processing") {
+      statusIcon = spinnerFrames[spinnerFrame];
+      statusColor = "var(--text-primary)";
+      statusText = "Processing...";
+    } else if (ep.status === "success") {
+      statusIcon = "✓";
+      statusColor = "var(--success)";
+      statusText = "Complete";
+    } else if (ep.status === "error") {
+      statusIcon = "✗";
+      statusColor = "var(--error)";
+      statusText = ep.error || "Failed";
+    }
+
+    return `
+      <div style="display: flex; justify-content: space-between; padding: 0.5rem; background: var(--bg-secondary); margin-bottom: 0.35rem; border-radius: var(--radius); border: 1px solid var(--border-default);">
+        <span style="color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ep.filename}</span>
+        <span style="color: ${statusColor}; margin-left: 1rem; white-space: nowrap;">${statusIcon} ${statusText}</span>
+      </div>
+    `;
+  }).join("");
+
+  episodeBatchList.innerHTML = listHtml;
+}
+
+async function processBatchEpisodes() {
+  for (let i = 0; i < batchEpisodes.length; i++) {
+    const ep = batchEpisodes[i];
+    batchCurrentIndex = i;
+    
+    ep.status = "processing";
+    updateBatchList();
+
+    try {
+      // Check for conflicts
+      const conflictCheck = await window.api.fetch("/check-conflict", {
+        method: "POST",
+        body: JSON.stringify({ filepath: ep.filepath }),
+      });
+
+      if (conflictCheck.conflict) {
+        // Skip if conflict exists
+        ep.status = "error";
+        ep.error = "Already exists";
+        updateBatchList();
+        continue;
+      }
+
+      // Process the file
+      const response = await window.api.fetch("/parse", {
+        method: "POST",
+        body: JSON.stringify({ filepath: ep.filepath }),
+      });
+
+      if (response.success) {
+        ep.status = "success";
+        ep.targetFolder = response.target_folder;
+        updateBatchList();
+      } else {
+        ep.status = "error";
+        ep.error = response.error || "Failed";
+        updateBatchList();
+      }
+    } catch (error) {
+      ep.status = "error";
+      ep.error = error.message || "Error";
+      updateBatchList();
+    }
+  }
+
+  // All done - stop spinner
+  if (spinnerInterval) {
+    clearInterval(spinnerInterval);
+    spinnerInterval = null;
+  }
+
+  const successCount = batchEpisodes.filter(ep => ep.status === "success").length;
+  const errorCount = batchEpisodes.filter(ep => ep.status === "error").length;
+
+  episodeUploadStatus.textContent = `Batch complete: ${successCount} successful, ${errorCount} failed`;
+  episodeUploadStatus.style.color = errorCount > 0 ? "var(--warning)" : "var(--success)";
+
+  // Show completion options
+  const completionDiv = document.createElement("div");
+  completionDiv.style.cssText = "margin-top: 1rem; display: flex; gap: 0.75rem; justify-content: center;";
+  completionDiv.innerHTML = `
+    <button class="menu-btn" id="batch-create-all-btn">Create All Torrents (${successCount})</button>
+    <button class="menu-btn" id="batch-done-btn">Done</button>
+  `;
+  episodeBatchList.appendChild(completionDiv);
+
+  document.getElementById("batch-create-all-btn").addEventListener("click", () => {
+    createAllBatchTorrents();
+  });
+
+  document.getElementById("batch-done-btn").addEventListener("click", () => {
+    resetBatchState();
+    showScreen("menu");
+  });
+}
+
+async function createAllBatchTorrents() {
+  const successfulEpisodes = batchEpisodes.filter(ep => ep.status === "success");
+  
+  if (successfulEpisodes.length === 0) {
+    await showAlert("No episodes were successfully processed.", { type: "warning" });
+    return;
+  }
+
+  // Navigate to the first episode to let user set metadata
+  // For now, we'll show them in the torrent list
+  episodeUploadStatus.textContent = `${successfulEpisodes.length} episode(s) ready in My Torrents`;
+  episodeUploadStatus.style.color = "var(--success)";
+  
+  await showAlert(`${successfulEpisodes.length} episode(s) have been processed and are ready in "My Torrents". You can now edit each one individually to add metadata and create torrents.`, { type: "success" });
+  
+  resetBatchState();
+  showScreen("menu");
+}
+
+function resetBatchState() {
+  // Stop spinner if running
+  if (spinnerInterval) {
+    clearInterval(spinnerInterval);
+    spinnerInterval = null;
+  }
+  
+  batchEpisodes = [];
+  batchCurrentIndex = 0;
+  episodeBatchList.style.display = "none";
+  episodeBatchList.innerHTML = "";
+  episodeUploadBox.style.display = "flex";
+  episodeUploadStatus.textContent = "";
+}
+
+// ============================================
+// Movie Upload Screen Event Handlers
+// ============================================
 async function handleFileUpload(filepath) {
   uploadBox.style.display = "none";
   movieUploadStatus.textContent = "Checking for conflicts...";

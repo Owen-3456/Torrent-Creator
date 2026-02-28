@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("api", {
   // Open native file dialog and return the selected file path
   selectFile: () => ipcRenderer.invoke("select-file"),
 
+  // Open native file dialog for multiple files and return array of paths
+  selectMultipleFiles: () => ipcRenderer.invoke("select-multiple-files"),
+
   // Open native folder dialog and return the selected folder path
   selectFolder: () => ipcRenderer.invoke("select-folder"),
 

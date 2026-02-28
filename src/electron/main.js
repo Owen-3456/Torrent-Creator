@@ -82,6 +82,23 @@ ipcMain.handle("select-file", async () => {
   return result.filePaths[0];
 });
 
+// Handle multiple file selection dialog (for batch episode processing)
+ipcMain.handle("select-multiple-files", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile", "multiSelections"],
+    filters: [
+      { name: "Video Files", extensions: ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths;
+});
+
 // Handle folder selection dialog
 ipcMain.handle("select-folder", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

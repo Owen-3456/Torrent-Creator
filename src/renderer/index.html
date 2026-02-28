@@ -27,7 +27,7 @@
         <div id="select-type" class="center-screen" style="display: none">
           <h2>Select Torrent Type</h2>
           <button class="menu-btn" id="type-movie">Movie</button>
-          <button class="menu-btn" id="type-episode">Single Episode</button>
+          <button class="menu-btn" id="type-episode">Single Episode(s)</button>
           <button class="menu-btn" id="type-season">Season Pack</button>
           <button class="menu-btn back-btn" id="type-back">Back</button>
         </div>
@@ -49,16 +49,18 @@
 
         <!-- Upload Episode -->
         <div id="upload-episode" class="center-screen" style="display: none">
-          <h2>Select Episode File</h2>
+          <h2>Select Episode File(s)</h2>
           <div id="episode-upload-box" class="upload-box">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <span>Click to select a file</span>
+            <span>Click to select episode(s)</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Tip: Hold Ctrl or Shift to select multiple files</span>
           </div>
           <div id="episode-upload-status"></div>
+          <div id="episode-batch-list" style="display: none; margin-top: 1rem; max-width: 600px; width: 100%"></div>
           <button class="menu-btn back-btn" id="episode-upload-back">Back</button>
         </div>
 
